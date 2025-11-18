@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/vehicles")
+@RequestMapping("/api/vehicles")
 @Tag(name = "Vehicles", description = "Vehicle registration and management endpoints")
 public class VehicleController {
 
@@ -32,7 +32,7 @@ public class VehicleController {
     @Operation(
             summary = "Register a new vehicle",
             description = "Register a new vehicle with registration document URL. " +
-                    "First, upload the registration document using POST /upload/image endpoint to get the URL. " +
+                    "First, upload the registration document using POST /api/upload/image endpoint to get the URL. " +
                     "Then use that URL in registrationDocumentUrl field. Vehicle will be in PENDING status until admin approval."
     )
     @SecurityRequirement(name = "bearerAuth")

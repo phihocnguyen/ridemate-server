@@ -18,7 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
-@RequestMapping("/upload")
+@RequestMapping("/api/upload")
 @Tag(name = "Upload", description = "File upload endpoints")
 public class UploadController {
 
