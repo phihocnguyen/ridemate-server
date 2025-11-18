@@ -48,6 +48,9 @@ public class Match extends BaseEntity {
     @Builder.Default
     private MatchStatus status = MatchStatus.WAITING;
 
+    @OneToOne(mappedBy = "match", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private Session session;
+
     public enum MatchStatus {
         WAITING,     // Looking for driver
         ACCEPTED,    // Driver found
