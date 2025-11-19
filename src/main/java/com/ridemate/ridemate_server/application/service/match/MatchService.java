@@ -2,6 +2,7 @@ package com.ridemate.ridemate_server.application.service.match;
 
 import com.ridemate.ridemate_server.application.dto.match.BookRideRequest;
 import com.ridemate.ridemate_server.application.dto.match.MatchResponse;
+import com.ridemate.ridemate_server.application.dto.match.UpdateMatchStatusRequest;
 import java.util.List;
 
 public interface MatchService {
@@ -9,4 +10,5 @@ public interface MatchService {
     MatchResponse getMatchById(Long matchId);
     List<MatchResponse> getMyHistory(Long userId);
     MatchResponse acceptRide(Long matchId, Long driverId);
+    MatchResponse updateMatchStatus(Long matchId, Long userId, UpdateMatchStatusRequest request);
 }
