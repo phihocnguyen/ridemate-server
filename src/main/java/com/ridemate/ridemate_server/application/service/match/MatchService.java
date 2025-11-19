@@ -8,4 +8,5 @@ public interface MatchService {
     MatchResponse bookRide(Long passengerId, BookRideRequest request);
     MatchResponse getMatchById(Long matchId);
     List<MatchResponse> getMyHistory(Long userId);
+    MatchResponse acceptRide(Long matchId, Long driverId);
 }

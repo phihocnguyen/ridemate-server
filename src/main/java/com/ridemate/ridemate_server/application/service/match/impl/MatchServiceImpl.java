@@ -7,8 +7,10 @@ import com.ridemate.ridemate_server.application.service.match.MatchService;
 import com.ridemate.ridemate_server.application.service.session.SessionService;
 import com.ridemate.ridemate_server.domain.entity.Match;
 import com.ridemate.ridemate_server.domain.entity.User;
+import com.ridemate.ridemate_server.domain.entity.Vehicle; 
 import com.ridemate.ridemate_server.domain.repository.MatchRepository;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
+import com.ridemate.ridemate_server.domain.repository.VehicleRepository; 
 import com.ridemate.ridemate_server.presentation.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,9 @@ public class MatchServiceImpl implements MatchService {
     private UserRepository userRepository;
 
     @Autowired
+    private VehicleRepository vehicleRepository;
+
+    @Autowired
     private MatchMapper matchMapper;
 
     @Autowired
@@ -37,9 +42,8 @@ public class MatchServiceImpl implements MatchService {
         User passenger = userRepository.findById(passengerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Basic validation
         if (passenger.getUserType() == User.UserType.DRIVER) {
-             // In some apps drivers can book rides too, but logic depends on your requirement
+             
         }
 
         Match match = Match.builder()
@@ -56,10 +60,8 @@ public class MatchServiceImpl implements MatchService {
 
         match = matchRepository.save(match);
         
-        // Automatically create session when match is created
         sessionService.createSession(match);
         
-        // TODO: Trigger notification/socket to nearby drivers here
         
         return matchMapper.toResponse(match);
     }
@@ -73,11 +75,42 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchResponse> getMyHistory(Long userId) {
-        // This logic might need improvement to handle both passenger and driver roles
-        // For now assuming passenger history
         List<Match> matches = matchRepository.findByPassengerId(userId);
         return matches.stream()
                 .map(matchMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+@Override
+    @Transactional
+    public MatchResponse acceptRide(Long matchId, Long driverId) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match not found with id: " + matchId));
+
+        if (match.getStatus() != Match.MatchStatus.WAITING) {
+            throw new IllegalArgumentException("Match is no longer available (Status: " + match.getStatus() + ")");
+        }
+
+        User driver = userRepository.findById(driverId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
+
+        if (driver.getUserType() != User.UserType.DRIVER) {
+            throw new IllegalArgumentException("Only users with DRIVER role can accept rides");
+        }
+
+        List<Vehicle> vehicles = vehicleRepository.findByDriverIdAndStatus(driverId, Vehicle.VehicleStatus.APPROVED);
+        if (vehicles.isEmpty()) {
+            throw new IllegalArgumentException("Driver does not have an active (APPROVED) vehicle");
+        }
+        
+        Vehicle vehicle = vehicles.get(0);
+
+        match.setDriver(driver);
+        match.setVehicle(vehicle);
+        match.setStatus(Match.MatchStatus.ACCEPTED);
+
+        match = matchRepository.save(match);
+
+        return matchMapper.toResponse(match);
     }
 }
