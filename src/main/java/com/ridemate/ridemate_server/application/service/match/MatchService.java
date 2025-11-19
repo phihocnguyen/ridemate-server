@@ -11,4 +11,5 @@ public interface MatchService {
     List<MatchResponse> getMyHistory(Long userId);
     MatchResponse acceptRide(Long matchId, Long driverId);
     MatchResponse updateMatchStatus(Long matchId, Long userId, UpdateMatchStatusRequest request);
+    MatchResponse cancelMatch(Long matchId, Long userId);
 }
