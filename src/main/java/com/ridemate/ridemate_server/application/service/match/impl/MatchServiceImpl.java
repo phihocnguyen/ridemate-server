@@ -4,6 +4,7 @@ import com.ridemate.ridemate_server.application.dto.match.BookRideRequest;
 import com.ridemate.ridemate_server.application.dto.match.MatchResponse;
 import com.ridemate.ridemate_server.application.mapper.MatchMapper;
 import com.ridemate.ridemate_server.application.service.match.MatchService;
+import com.ridemate.ridemate_server.application.service.session.SessionService;
 import com.ridemate.ridemate_server.domain.entity.Match;
 import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.domain.repository.MatchRepository;
@@ -26,6 +27,9 @@ public class MatchServiceImpl implements MatchService {
 
     @Autowired
     private MatchMapper matchMapper;
+
+    @Autowired
+    private SessionService sessionService;
 
     @Override
     @Transactional
@@ -51,6 +55,9 @@ public class MatchServiceImpl implements MatchService {
                 .build();
 
         match = matchRepository.save(match);
+        
+        // Automatically create session when match is created
+        sessionService.createSession(match);
         
         // TODO: Trigger notification/socket to nearby drivers here
         
