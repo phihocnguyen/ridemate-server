@@ -2,6 +2,7 @@ package com.ridemate.ridemate_server.presentation.controller;
 
 import com.ridemate.ridemate_server.application.dto.match.BookRideRequest;
 import com.ridemate.ridemate_server.application.dto.match.MatchResponse;
+import com.ridemate.ridemate_server.application.dto.match.UpdateMatchStatusRequest;
 import com.ridemate.ridemate_server.application.service.match.MatchService;
 import com.ridemate.ridemate_server.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +61,24 @@ public class MatchController {
         
         MatchResponse response = matchService.acceptRide(id, driverId);
         return ResponseEntity.ok(ApiResponse.success("Ride accepted successfully", response));
+    }
+
+    @PutMapping("/{id}/status")
+    @Operation(summary = "Update match status", description = "Update the status of a ride (e.g., IN_PROGRESS, COMPLETED, CANCELLED)")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Status updated successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = MatchResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid status or transition"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Unauthorized to update this match")
+    })
+    public ResponseEntity<ApiResponse<MatchResponse>> updateMatchStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateMatchStatusRequest request,
+            @AuthenticationPrincipal Long userId) {
+        
+        MatchResponse response = matchService.updateMatchStatus(id, userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Match status updated successfully", response));
     }
 
     @GetMapping("/{id}")
