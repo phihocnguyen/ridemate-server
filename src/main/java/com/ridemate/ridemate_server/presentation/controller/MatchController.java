@@ -45,6 +45,23 @@ public class MatchController {
                 .body(ApiResponse.success("Ride booked successfully", response));
     }
 
+    @PostMapping("/{id}/accept")
+    @Operation(summary = "Accept a ride", description = "Driver accepts a waiting ride. Driver must have an APPROVED vehicle.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Ride accepted successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = MatchResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Ride not available or User not a driver"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Match not found")
+    })
+    public ResponseEntity<ApiResponse<MatchResponse>> acceptRide(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long driverId) {
+        
+        MatchResponse response = matchService.acceptRide(id, driverId);
+        return ResponseEntity.ok(ApiResponse.success("Ride accepted successfully", response));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get match details", description = "Get details of a specific match")
     @SecurityRequirement(name = "bearerAuth")
@@ -61,3 +78,5 @@ public class MatchController {
         return ResponseEntity.ok(ApiResponse.success("History retrieved", response));
     }
 }
+
+    
