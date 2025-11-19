@@ -81,6 +81,20 @@ public class MatchController {
         return ResponseEntity.ok(ApiResponse.success("Match status updated successfully", response));
     }
 
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Cancel a ride", description = "Passenger or Driver cancels the ride")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Ride cancelled successfully")
+    })
+    public ResponseEntity<ApiResponse<MatchResponse>> cancelRide(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long userId) {
+        
+        MatchResponse response = matchService.cancelMatch(id, userId);
+        return ResponseEntity.ok(ApiResponse.success("Ride cancelled successfully", response));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get match details", description = "Get details of a specific match")
     @SecurityRequirement(name = "bearerAuth")

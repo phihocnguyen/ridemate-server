@@ -149,4 +149,36 @@ public class MatchServiceImpl implements MatchService {
 
         return matchMapper.toResponse(match);
     }
+
+    @Override
+    @Transactional
+    public MatchResponse cancelMatch(Long matchId, Long userId) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match not found"));
+
+        // Kiểm tra quyền: Phải là Tài xế hoặc Hành khách của cuốc này
+        boolean isPassenger = match.getPassenger().getId().equals(userId);
+        boolean isDriver = match.getDriver() != null && match.getDriver().getId().equals(userId);
+
+        if (!isPassenger && !isDriver) {
+            throw new IllegalArgumentException("You are not authorized to cancel this match");
+        }
+
+        // Không được hủy nếu đã hoàn thành hoặc đã hủy
+        if (match.getStatus() == Match.MatchStatus.COMPLETED || match.getStatus() == Match.MatchStatus.CANCELLED) {
+            throw new IllegalArgumentException("Cannot cancel a completed or already cancelled match");
+        }
+
+        match.setStatus(Match.MatchStatus.CANCELLED);
+        match = matchRepository.save(match);
+
+        // Kết thúc session ngay lập tức
+        try {
+            sessionService.endSession(matchId);
+        } catch (Exception e) {
+            // Bỏ qua nếu session đã đóng
+        }
+
+        return matchMapper.toResponse(match);
+    }
 }
