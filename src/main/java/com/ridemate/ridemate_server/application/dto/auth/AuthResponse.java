@@ -38,7 +38,7 @@ public class AuthResponse {
         private String fullName;
         private String phoneNumber;
         private String userType;
-        private Integer points;
+        private Integer coins;
         private Float rating;
     }
 }

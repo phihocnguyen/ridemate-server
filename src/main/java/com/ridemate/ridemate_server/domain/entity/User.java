@@ -53,7 +53,7 @@ public class User extends BaseEntity {
 
     @Column(nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     @Builder.Default
-    private Integer points = 0;
+    private Integer coins = 0;
 
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT true")
     @Builder.Default
