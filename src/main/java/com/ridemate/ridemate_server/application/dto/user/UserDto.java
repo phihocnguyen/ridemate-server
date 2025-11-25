@@ -32,7 +32,7 @@ public class UserDto {
     private Float rating;
 
     @Schema(description = "User's reward points", example = "100")
-    private Integer points;
+    private Integer coins;
 
     @Schema(description = "User type (DRIVER or PASSENGER)", example = "PASSENGER")
     private String userType;

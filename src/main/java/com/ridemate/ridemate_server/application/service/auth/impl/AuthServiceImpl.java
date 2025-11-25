@@ -82,7 +82,9 @@ public class AuthServiceImpl implements AuthService {
                 .userType(User.UserType.valueOf(request.getUserType() != null ? 
                         request.getUserType() : "PASSENGER"))
                 .rating(0f)
-                .points(0)
+                .rating(0f)
+                .coins(0)
+                .isActive(true)
                 .isActive(true)
                 .build();
 
@@ -117,7 +119,9 @@ public class AuthServiceImpl implements AuthService {
                 .userType(User.UserType.valueOf(request.getUserType() != null ? 
                         request.getUserType() : "PASSENGER"))
                 .rating(0f)
-                .points(0)
+                .rating(0f)
+                .coins(0)
+                .isActive(true)
                 .isActive(true)
                 .build();
 
@@ -264,7 +268,10 @@ public class AuthServiceImpl implements AuthService {
                         .currentLongitude(request.getCurrentLongitude())
                         .passwordHash(null)
                         .rating(0f)
-                        .points(0)
+                        .passwordHash(null)
+                        .rating(0f)
+                        .coins(0)
+                        .isActive(true)
                         .isActive(true)
                         .build();
 
@@ -305,7 +312,8 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(user.getFullName())
                 .phoneNumber(user.getPhoneNumber())
                 .userType(user.getUserType().toString())
-                .points(user.getPoints())
+                .userType(user.getUserType().toString())
+                .coins(user.getCoins())
                 .rating(user.getRating())
                 .build();
 
