@@ -10,4 +10,5 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     List<Match> findByPassengerId(Long passengerId);
     List<Match> findByDriverId(Long driverId);
     List<Match> findByStatus(Match.MatchStatus status);
+    long countByStatus(Match.MatchStatus status);
 }

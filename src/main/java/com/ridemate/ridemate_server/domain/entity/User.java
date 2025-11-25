@@ -60,7 +60,7 @@ public class User extends BaseEntity {
     private Boolean isActive = true;
 
     public enum UserType {
-        DRIVER, PASSENGER
+        DRIVER, PASSENGER, ADMIN
     }
 
     public enum AuthProvider {
