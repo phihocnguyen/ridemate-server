@@ -11,12 +11,16 @@ import com.ridemate.ridemate_server.domain.repository.OTPRepository;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Random;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 
 @Slf4j
 @Service
@@ -39,6 +43,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private OtpNotificationService otpNotificationService;
+
+    @Value("${STREAM_API_KEY}")
+    private String streamApiKey;
+
+    @Value("${STREAM_API_SECRET}")
+    private String streamApiSecret;
 
     @Override
     @Transactional
@@ -82,9 +92,7 @@ public class AuthServiceImpl implements AuthService {
                 .userType(User.UserType.valueOf(request.getUserType() != null ? 
                         request.getUserType() : "PASSENGER"))
                 .rating(0f)
-                .rating(0f)
                 .coins(0)
-                .isActive(true)
                 .isActive(true)
                 .build();
 
@@ -119,9 +127,7 @@ public class AuthServiceImpl implements AuthService {
                 .userType(User.UserType.valueOf(request.getUserType() != null ? 
                         request.getUserType() : "PASSENGER"))
                 .rating(0f)
-                .rating(0f)
                 .coins(0)
-                .isActive(true)
                 .isActive(true)
                 .build();
 
@@ -202,8 +208,7 @@ public class AuthServiceImpl implements AuthService {
 
         otpNotificationService.sendOtpViaSms(request.getPhoneNumber(), otpCode, request.getPurpose());
         log.info("OTP sent to {} for purpose: {}", request.getPhoneNumber(), request.getPurpose());
-        log.debug("Generated OTP: {} (for development only)", otpCode);
-
+        
         return OtpResponse.builder()
                 .success(true)
                 .message("OTP sent to " + request.getPhoneNumber())
@@ -268,10 +273,7 @@ public class AuthServiceImpl implements AuthService {
                         .currentLongitude(request.getCurrentLongitude())
                         .passwordHash(null)
                         .rating(0f)
-                        .passwordHash(null)
-                        .rating(0f)
                         .coins(0)
-                        .isActive(true)
                         .isActive(true)
                         .build();
 
@@ -303,15 +305,36 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Social login failed: " + e.getMessage());
         }
     }
+    
+    private String generateStreamChatToken(Long userId) {
+        try {
+            
+            if (streamApiSecret == null || streamApiSecret.isEmpty() || "default_secret_if_missing".equals(streamApiSecret)) {
+                log.warn("STREAM_API_SECRET is not set in .env file. Chat token will be invalid.");
+                return null;
+            }
+            
+            SecretKey key = Keys.hmacShaKeyFor(streamApiSecret.getBytes(StandardCharsets.UTF_8));
+            
+            return Jwts.builder()
+                    .claim("user_id", userId.toString())
+                    .signWith(key, Jwts.SIG.HS256) 
+                    .compact();
+        } catch (Exception e) {
+            log.error("Error generating Stream Chat token", e);
+            return null;
+        }
+    }
 
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
         long expiresIn = 86400;
+        
+        String chatToken = generateStreamChatToken(user.getId());
 
         AuthResponse.UserDto userDto = AuthResponse.UserDto.builder()
                 .id(user.getId())
                 .fullName(user.getFullName())
                 .phoneNumber(user.getPhoneNumber())
-                .userType(user.getUserType().toString())
                 .userType(user.getUserType().toString())
                 .coins(user.getCoins())
                 .rating(user.getRating())
@@ -320,6 +343,8 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .chatToken(chatToken) 
+                .streamApiKey(streamApiKey) 
                 .tokenType("Bearer")
                 .expiresIn(expiresIn)
                 .user(userDto)
