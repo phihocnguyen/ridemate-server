@@ -19,6 +19,12 @@ public class AuthResponse {
     @Schema(description = "Refresh token", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String refreshToken;
 
+    @Schema(description = "Token for Stream Chat SDK", example = "eyJhbGciOiJIUzI1Ni...")
+    private String chatToken; 
+
+    @Schema(description = "Stream Chat API Key", example = "b3j3ftwzjmhk")
+    private String streamApiKey;
+
     @Schema(description = "Token type", example = "Bearer")
     @Builder.Default
     private String tokenType = "Bearer";
@@ -38,7 +44,7 @@ public class AuthResponse {
         private String fullName;
         private String phoneNumber;
         private String userType;
-        private Integer points;
+        private Integer coins;
         private Float rating;
     }
 }
