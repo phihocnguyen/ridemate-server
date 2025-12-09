@@ -15,10 +15,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Random;
+import java.util.UUID; 
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
@@ -49,6 +52,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${STREAM_API_SECRET}")
     private String streamApiSecret;
+
+    @Override
+    public boolean checkPhoneExists(String phoneNumber) {
+        return userRepository.existsByPhoneNumber(phoneNumber);
+    }
 
     @Override
     @Transactional
@@ -83,6 +91,7 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(request.getFullName())
                 .phoneNumber(request.getPhoneNumber())
                 .email(request.getEmail())
+                .streamId(UUID.randomUUID().toString()) 
                 .profilePictureUrl(request.getProfilePictureUrl())
                 .faceIdData(request.getFaceIdData())
                 .currentLatitude(request.getCurrentLatitude())
@@ -118,6 +127,7 @@ public class AuthServiceImpl implements AuthService {
                 .fullName(request.getFullName())
                 .phoneNumber(request.getPhoneNumber())
                 .email(request.getEmail())
+                .streamId(UUID.randomUUID().toString()) // [MỚI] Tạo UUID
                 .profilePictureUrl(request.getProfilePictureUrl())
                 .faceIdData(request.getFaceIdData())
                 .currentLatitude(request.getCurrentLatitude())
@@ -149,24 +159,23 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Invalid phone number or password");
         }
 
+        if (user.getStreamId() == null || user.getStreamId().isEmpty()) {
+            user.setStreamId(UUID.randomUUID().toString());
+        }
+
         // ===== AUTO SET DRIVER TO ONLINE ON LOGIN =====
         if (user.getUserType() == User.UserType.DRIVER) {
-            // Update driver status to ONLINE
             user.setDriverStatus(User.DriverStatus.ONLINE);
             
-            // Set/update location if provided in request, or use existing
             if (request.getCurrentLatitude() != null && request.getCurrentLongitude() != null) {
                 user.setCurrentLatitude(request.getCurrentLatitude());
                 user.setCurrentLongitude(request.getCurrentLongitude());
             } else if (user.getCurrentLatitude() == null) {
-                // Default to Ho Chi Minh center if no location ever set
                 user.setCurrentLatitude(10.7769);
                 user.setCurrentLongitude(106.7009);
             }
             
-            user.setLastLocationUpdate(java.time.LocalDateTime.now());
-            log.info("Driver {} auto set to ONLINE on login at location ({}, {})", 
-                    user.getId(), user.getCurrentLatitude(), user.getCurrentLongitude());
+            user.setLastLocationUpdate(LocalDateTime.now());
         }
 
         user = userRepository.save(user);
@@ -193,6 +202,12 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // [MỚI] Đảm bảo có streamId khi refresh token
+        if (user.getStreamId() == null || user.getStreamId().isEmpty()) {
+            user.setStreamId(UUID.randomUUID().toString());
+            user = userRepository.save(user);
+        }
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
@@ -286,6 +301,7 @@ public class AuthServiceImpl implements AuthService {
                         .fullName(request.getFullName() != null ? request.getFullName() : userInfo.getName())
                         .phoneNumber(null)
                         .email(userInfo.getEmail())
+                        .streamId(UUID.randomUUID().toString()) // [MỚI] Tạo UUID
                         .profilePictureUrl(userInfo.getProfilePictureUrl())
                         .providerId(userInfo.getProviderId())
                         .authProvider(User.AuthProvider.valueOf(userInfo.getProvider()))
@@ -302,6 +318,10 @@ public class AuthServiceImpl implements AuthService {
                 user = userRepository.save(user);
                 log.info("New social user created: {} via {}", user.getEmail(), userInfo.getProvider());
             } else {
+                if (user.getStreamId() == null || user.getStreamId().isEmpty()) {
+                    user.setStreamId(UUID.randomUUID().toString());
+                }
+
                 if (request.getFullName() != null) {
                     user.setFullName(request.getFullName());
                 }
@@ -328,9 +348,8 @@ public class AuthServiceImpl implements AuthService {
         }
     }
     
-    private String generateStreamChatToken(Long userId) {
+    private String generateStreamChatToken(String streamId) {
         try {
-            
             if (streamApiSecret == null || streamApiSecret.isEmpty() || "default_secret_if_missing".equals(streamApiSecret)) {
                 log.warn("STREAM_API_SECRET is not set in .env file. Chat token will be invalid.");
                 return null;
@@ -339,7 +358,7 @@ public class AuthServiceImpl implements AuthService {
             SecretKey key = Keys.hmacShaKeyFor(streamApiSecret.getBytes(StandardCharsets.UTF_8));
             
             return Jwts.builder()
-                    .claim("user_id", userId.toString())
+                    .claim("user_id", streamId) 
                     .signWith(key, Jwts.SIG.HS256) 
                     .compact();
         } catch (Exception e) {
@@ -351,10 +370,11 @@ public class AuthServiceImpl implements AuthService {
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
         long expiresIn = 86400;
         
-        String chatToken = generateStreamChatToken(user.getId());
+        String chatToken = generateStreamChatToken(user.getStreamId());
 
         AuthResponse.UserDto userDto = AuthResponse.UserDto.builder()
                 .id(user.getId())
+                .streamId(user.getStreamId()) 
                 .fullName(user.getFullName())
                 .phoneNumber(user.getPhoneNumber())
                 .userType(user.getUserType().toString())

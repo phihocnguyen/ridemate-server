@@ -24,6 +24,9 @@ public class User extends BaseEntity {
     @Column(nullable = true)
     private String profilePictureUrl;
 
+    @Column(unique = true, length = 100)
+    private String streamId;
+
     @Column(nullable = false, columnDefinition = "FLOAT DEFAULT 0.0")
     @Builder.Default
     private Float rating = 0f;
