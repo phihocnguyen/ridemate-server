@@ -149,6 +149,28 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Invalid phone number or password");
         }
 
+        // ===== AUTO SET DRIVER TO ONLINE ON LOGIN =====
+        if (user.getUserType() == User.UserType.DRIVER) {
+            // Update driver status to ONLINE
+            user.setDriverStatus(User.DriverStatus.ONLINE);
+            
+            // Set/update location if provided in request, or use existing
+            if (request.getCurrentLatitude() != null && request.getCurrentLongitude() != null) {
+                user.setCurrentLatitude(request.getCurrentLatitude());
+                user.setCurrentLongitude(request.getCurrentLongitude());
+            } else if (user.getCurrentLatitude() == null) {
+                // Default to Ho Chi Minh center if no location ever set
+                user.setCurrentLatitude(10.7769);
+                user.setCurrentLongitude(106.7009);
+            }
+            
+            user.setLastLocationUpdate(java.time.LocalDateTime.now());
+            log.info("Driver {} auto set to ONLINE on login at location ({}, {})", 
+                    user.getId(), user.getCurrentLatitude(), user.getCurrentLongitude());
+        }
+
+        user = userRepository.save(user);
+
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
 

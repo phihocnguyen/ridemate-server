@@ -30,12 +30,19 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     @Transactional
     public VehicleResponse registerVehicle(Long driverId, RegisterVehicleRequest request) {
-        // Validate driver exists and is a driver
+        // Validate driver exists
         User driver = userRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
 
-        if (driver.getUserType() != User.UserType.DRIVER) {
-            throw new IllegalArgumentException("User must be a driver to register a vehicle");
+        // ===== AUTO UPGRADE PASSENGER TO DRIVER =====
+        if (driver.getUserType() == User.UserType.PASSENGER) {
+            log.info("User {} is PASSENGER, auto-upgrading to DRIVER on first vehicle registration", driverId);
+            driver.setUserType(User.UserType.DRIVER);
+            // Auto set to ONLINE on first vehicle registration
+            driver.setDriverStatus(User.DriverStatus.ONLINE);
+            driver = userRepository.save(driver);
+        } else if (driver.getUserType() != User.UserType.DRIVER) {
+            throw new IllegalArgumentException("User must be a passenger or driver to register a vehicle");
         }
 
         // Check if license plate already exists

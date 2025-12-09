@@ -1,9 +1,7 @@
 package com.ridemate.ridemate_server.application.dto.match;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Min;
 import lombok.Data;
 
 @Data
@@ -29,11 +27,6 @@ public class BookRideRequest {
 
     @Schema(example = "106.6983")
     private Double destinationLongitude;
-
-    @NotNull(message = "Fare estimation is required")
-    @Min(value = 0, message = "Fare must be positive")
-    @Schema(example = "50000")
-    private Double fare;
 
     @NotBlank(message = "Vehicle type is required")
     @Schema(example = "MOTORBIKE", allowableValues = {"MOTORBIKE", "CAR"})
