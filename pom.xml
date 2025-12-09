@@ -118,6 +118,12 @@
 			<version>1.38.0</version>
 		</dependency>
 
+		<!-- HTTP Client for Supabase REST API -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
 		<!-- Lombok -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

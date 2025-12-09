@@ -1,5 +1,6 @@
 package com.ridemate.ridemate_server.presentation.controller;
 
+import com.ridemate.ridemate_server.application.dto.user.UpdateDriverStatusRequest;
 import com.ridemate.ridemate_server.application.dto.user.UserDto;
 import com.ridemate.ridemate_server.application.service.user.UserService;
 import com.ridemate.ridemate_server.presentation.dto.response.ApiResponse;
@@ -9,15 +10,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -73,5 +72,47 @@ public class UserController {
     @Operation(summary = "Health check", description = "Check if API is running")
     public ResponseEntity<ApiResponse<String>> health() {
         return ResponseEntity.ok(ApiResponse.success(200, "API is running", "OK"));
+    }
+
+    @PostMapping("/driver/status")
+    @Operation(summary = "Update driver status and location", 
+               description = "Drivers use this to go ONLINE/OFFLINE and update their current location for matching algorithm")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Driver status updated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Only drivers can update driver status")
+    })
+    public ResponseEntity<ApiResponse<UserDto>> updateDriverStatus(
+            @Valid @RequestBody UpdateDriverStatusRequest request,
+            @AuthenticationPrincipal Long userId) {
+        
+        UserDto updatedUser = userService.updateDriverStatus(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Driver status updated successfully", updatedUser));
+    }
+
+    @PutMapping("/driver/location")
+    @Operation(summary = "Update driver current location", 
+               description = "Driver sends periodic location updates while ONLINE (for matching algorithm)")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Location updated successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Only drivers can update location")
+    })
+    public ResponseEntity<ApiResponse<UserDto>> updateDriverLocation(
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @AuthenticationPrincipal Long userId) {
+        
+        UpdateDriverStatusRequest request = UpdateDriverStatusRequest.builder()
+                .latitude(latitude)
+                .longitude(longitude)
+                .build();
+        
+        UserDto updatedUser = userService.updateDriverStatus(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Location updated successfully", updatedUser));
     }
 }

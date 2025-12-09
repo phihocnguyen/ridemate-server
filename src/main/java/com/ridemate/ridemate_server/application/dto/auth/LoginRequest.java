@@ -21,4 +21,10 @@ public class LoginRequest {
     @NotBlank(message = "Password is required")
     @Schema(description = "User's password", example = "Password@123")
     private String password;
+
+    @Schema(description = "(Optional) Driver's current latitude for location update on login", example = "10.7769")
+    private Double currentLatitude;
+
+    @Schema(description = "(Optional) Driver's current longitude for location update on login", example = "106.7009")
+    private Double currentLongitude;
 }
