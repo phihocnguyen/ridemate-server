@@ -13,7 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/feedback")
+@RequestMapping("/feedback")
 @Tag(name = "Feedback", description = "Ride rating and review endpoints")
 public class FeedbackController {
 

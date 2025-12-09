@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/vouchers")
+@RequestMapping("/vouchers")
 @RequiredArgsConstructor
 @Tag(name = "Vouchers", description = "Voucher management endpoints")
 public class VoucherController {

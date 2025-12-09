@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/locations")
+@RequestMapping("/locations")
 @Tag(name = "Favorite Locations", description = "Manage saved addresses")
 public class LocationController {
 
