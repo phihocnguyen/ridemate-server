@@ -4,8 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Pattern;
-import lombok.AllArgsConstructor;
+// import jakarta.validation.constraints.Pattern; 
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,7 +17,6 @@ import lombok.NoArgsConstructor;
 public class RegisterVehicleRequest {
 
     @NotBlank(message = "License plate is required")
-    @Pattern(regexp = "^[0-9]{2}[A-Z]{1,2}-[0-9]{4,5}$", message = "License plate must be in format: XX-YZZZZ or XX-YY-ZZZZ")
     @Schema(description = "Vehicle license plate", example = "30A-12345")
     private String licensePlate;
 
@@ -47,4 +45,3 @@ public class RegisterVehicleRequest {
     @Schema(description = "URL of the registration document (uploaded via /upload endpoint)", example = "https://res.cloudinary.com/...")
     private String registrationDocumentUrl;
 }
-
