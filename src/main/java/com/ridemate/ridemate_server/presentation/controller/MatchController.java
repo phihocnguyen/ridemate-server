@@ -110,6 +110,14 @@ public class MatchController {
         List<MatchResponse> response = matchService.getMyHistory(userId);
         return ResponseEntity.ok(ApiResponse.success("History retrieved", response));
     }
+
+    @GetMapping("/waiting")
+    @Operation(summary = "Get waiting rides", description = "Get all rides with status WAITING for drivers to pick")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<List<MatchResponse>>> getWaitingMatches() {
+        List<MatchResponse> response = matchService.getWaitingMatches();
+        return ResponseEntity.ok(ApiResponse.success("Waiting rides retrieved successfully", response));
+    }
 }
 
     
