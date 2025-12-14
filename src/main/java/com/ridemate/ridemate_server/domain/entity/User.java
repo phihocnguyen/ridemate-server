@@ -12,6 +12,31 @@ import lombok.*;
 @AllArgsConstructor
 public class User extends BaseEntity {
 
+    // ===== ENUMS =====
+    
+    public enum UserType {
+        DRIVER, PASSENGER, ADMIN
+    }
+
+    public enum AuthProvider {
+        LOCAL, GOOGLE, FACEBOOK
+    }
+
+    public enum DriverStatus {
+        ONLINE,   // Available and ready to accept rides
+        OFFLINE,  // Not accepting rides
+        BUSY      // Currently on a ride
+    }
+    
+    public enum DriverApprovalStatus {
+        NONE,      // Not applied or PASSENGER
+        PENDING,   // Applied and waiting for approval
+        APPROVED,  // Approved to be a driver
+        REJECTED   // Application rejected
+    }
+
+    // ===== BASIC FIELDS =====
+
     @Column(nullable = false, length = 100)
     private String fullName;
 
@@ -59,6 +84,28 @@ public class User extends BaseEntity {
     @Builder.Default
     private Boolean isActive = true;
 
+    // ===== DRIVER APPROVAL FIELDS =====
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    @Builder.Default
+    private DriverApprovalStatus driverApprovalStatus = DriverApprovalStatus.NONE;
+    
+    @Column(nullable = true, length = 50)
+    private String licenseNumber;
+    
+    @Column(nullable = true, length = 500)
+    private String vehicleInfo;
+    
+    @Column(nullable = true, length = 1000)
+    private String rejectionReason;
+    
+    @Column(nullable = true)
+    private String licenseImageUrl;
+    
+    @Column(nullable = true)
+    private String vehicleImageUrl;
+
     // ===== DRIVER-SPECIFIC FIELDS FOR MATCHING ALGORITHM =====
     
     @Enumerated(EnumType.STRING)
@@ -91,18 +138,4 @@ public class User extends BaseEntity {
     // Last time driver updated their location (for staleness check)
     @Column(nullable = true)
     private java.time.LocalDateTime lastLocationUpdate;
-
-    public enum UserType {
-        DRIVER, PASSENGER, ADMIN
-    }
-
-    public enum AuthProvider {
-        LOCAL, GOOGLE, FACEBOOK
-    }
-
-    public enum DriverStatus {
-        ONLINE,   // Available and ready to accept rides
-        OFFLINE,  // Not accepting rides
-        BUSY      // Currently on a ride
-    }
 }
