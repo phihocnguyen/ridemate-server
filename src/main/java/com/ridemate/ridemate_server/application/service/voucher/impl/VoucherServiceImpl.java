@@ -93,6 +93,31 @@ public class VoucherServiceImpl implements VoucherService {
                 .map(this::mapToUserVoucherDto)
                 .collect(Collectors.toList());
     }
+    
+    @Override
+    @Transactional
+    public VoucherDto updateVoucher(Long id, VoucherDto voucherDto) {
+        Voucher voucher = voucherRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Voucher not found"));
+        
+        voucher.setVoucherCode(voucherDto.getVoucherCode());
+        voucher.setDescription(voucherDto.getDescription());
+        voucher.setVoucherType(voucherDto.getVoucherType());
+        voucher.setCost(voucherDto.getCost());
+        voucher.setExpiryDate(voucherDto.getExpiryDate());
+        voucher.setIsActive(voucherDto.getIsActive());
+        
+        Voucher updatedVoucher = voucherRepository.save(voucher);
+        return mapToVoucherDto(updatedVoucher);
+    }
+    
+    @Override
+    @Transactional
+    public void deleteVoucher(Long id) {
+        Voucher voucher = voucherRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Voucher not found"));
+        voucherRepository.delete(voucher);
+    }
 
     private VoucherDto mapToVoucherDto(Voucher voucher) {
         return VoucherDto.builder()

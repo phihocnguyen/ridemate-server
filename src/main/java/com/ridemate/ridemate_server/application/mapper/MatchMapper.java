@@ -18,6 +18,11 @@ public interface MatchMapper {
     @Mapping(target = "vehicleId", source = "vehicle.id")
     @Mapping(target = "vehicleInfo", source = "match", qualifiedByName = "mapVehicleInfo")
     @Mapping(target = "status", source = "status")
+    // Map coordinates for map routing
+    @Mapping(target = "pickupLatitude", source = "pickupLatitude")
+    @Mapping(target = "pickupLongitude", source = "pickupLongitude")
+    @Mapping(target = "destinationLatitude", source = "destinationLatitude")
+    @Mapping(target = "destinationLongitude", source = "destinationLongitude")
     MatchResponse toResponse(Match match);
 
     @Named("mapVehicleInfo")
