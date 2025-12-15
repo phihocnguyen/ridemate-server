@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/matches")
+@RequestMapping("/matches")
 @Tag(name = "Matches", description = "Ride booking and management")
 public class MatchController {
 
@@ -109,6 +109,14 @@ public class MatchController {
     public ResponseEntity<ApiResponse<List<MatchResponse>>> getHistory(@AuthenticationPrincipal Long userId) {
         List<MatchResponse> response = matchService.getMyHistory(userId);
         return ResponseEntity.ok(ApiResponse.success("History retrieved", response));
+    }
+
+    @GetMapping("/waiting")
+    @Operation(summary = "Get waiting rides", description = "Get all rides with status WAITING for drivers to pick")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<List<MatchResponse>>> getWaitingMatches() {
+        List<MatchResponse> response = matchService.getWaitingMatches();
+        return ResponseEntity.ok(ApiResponse.success("Waiting rides retrieved successfully", response));
     }
 }
 

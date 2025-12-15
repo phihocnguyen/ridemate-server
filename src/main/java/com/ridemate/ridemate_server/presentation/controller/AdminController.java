@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/admin")
 @Tag(name = "Admin Management", description = "Admin management endpoints")
 @RequiredArgsConstructor
 public class AdminController {

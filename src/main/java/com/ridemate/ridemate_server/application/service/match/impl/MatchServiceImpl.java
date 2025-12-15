@@ -162,6 +162,15 @@ public class MatchServiceImpl implements MatchService {
                 .collect(Collectors.toList());
     }
 
+   @Override
+    public List<MatchResponse> getWaitingMatches() {
+        List<Match> matches = matchRepository.findByStatus(Match.MatchStatus.WAITING);
+
+        return matches.stream()
+                .map(matchMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+ 
     @Override
     @Transactional
     public MatchResponse acceptRide(Long matchId, Long driverId) {

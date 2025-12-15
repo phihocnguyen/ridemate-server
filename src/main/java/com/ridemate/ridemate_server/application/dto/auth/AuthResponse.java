@@ -41,7 +41,6 @@ public class AuthResponse {
     @AllArgsConstructor
     public static class UserDto {
         private Long id;
-        private String streamId;
         private String fullName;
         private String phoneNumber;
         private String userType;
