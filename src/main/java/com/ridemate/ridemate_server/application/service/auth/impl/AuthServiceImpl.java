@@ -98,8 +98,8 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         log.info("User registered successfully: {}", user.getPhoneNumber());
 
@@ -133,8 +133,8 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         return buildAuthResponse(user, accessToken, refreshToken);
     }
@@ -171,8 +171,8 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         return buildAuthResponse(user, accessToken, refreshToken);
     }
@@ -194,8 +194,8 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         return buildAuthResponse(user, newAccessToken, newRefreshToken);
     }
@@ -316,9 +316,11 @@ public class AuthServiceImpl implements AuthService {
             }
 
             String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), 
-                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail());
+                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail(), 
+                    user.getUserType().toString());
             String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), 
-                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail());
+                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail(), 
+                    user.getUserType().toString());
 
             return buildAuthResponse(user, accessToken, refreshToken);
 

@@ -3,6 +3,8 @@ package com.ridemate.ridemate_server.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @Entity
@@ -24,10 +26,10 @@ public class Report extends BaseEntity {
     @JoinColumn(name = "match_id")
     private Match match; 
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String title;
 
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, length = 1000, columnDefinition = "TEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)
@@ -39,8 +41,31 @@ public class Report extends BaseEntity {
     @Builder.Default
     private ReportStatus status = ReportStatus.PENDING;
 
-    @Column(length = 500)
-    private String evidenceUrl; 
+    @Column(length = 500, columnDefinition = "VARCHAR(500)")
+    private String evidenceUrl;
+
+    /**
+     * Resolution action taken on this report
+     */
+    @Enumerated(EnumType.STRING)
+    private ResolutionAction resolutionAction;
+
+    /**
+     * Admin notes when resolving the report
+     */
+    @Column(length = 500, columnDefinition = "VARCHAR(500)")
+    private String resolutionNotes;
+
+    /**
+     * When the report was resolved
+     */
+    private LocalDateTime resolvedAt;
+
+    /**
+     * Which admin resolved the report
+     */
+    @Column(columnDefinition = "TEXT")
+    private String resolvedBy; 
 
     public enum ReportCategory {
         SAFETY,             
@@ -56,5 +81,12 @@ public class Report extends BaseEntity {
         PROCESSING, 
         RESOLVED,   
         REJECTED    
+    }
+
+    public enum ResolutionAction {
+        LOCK_7_DAYS,
+        LOCK_30_DAYS,
+        LOCK_PERMANENT,
+        WARNING
     }
 }
