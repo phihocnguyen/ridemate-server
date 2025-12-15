@@ -3,11 +3,13 @@ package com.ridemate.ridemate_server.application.service.user;
 import com.ridemate.ridemate_server.application.dto.user.*;
 import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
+import com.ridemate.ridemate_server.domain.repository.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,13 +41,8 @@ public class UserManagementService {
         
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
         
-        Page<User> userPage = userRepository.searchUsers(
-            userType, 
-            isActive, 
-            driverApprovalStatus, 
-            searchTerm, 
-            pageable
-        );
+        Specification<User> spec = UserSpecification.searchUsers(userType, isActive, driverApprovalStatus, searchTerm);
+        Page<User> userPage = userRepository.findAll(spec, pageable);
         
         List<UserManagementDto> userDtos = userPage.getContent()
             .stream()
@@ -137,8 +134,8 @@ public class UserManagementService {
             .totalDrivers(userRepository.countByUserType(User.UserType.DRIVER))
             .totalPassengers(userRepository.countByUserType(User.UserType.PASSENGER))
             .totalAdmins(userRepository.countByUserType(User.UserType.ADMIN))
-            .activeUsers(userRepository.countByIsActive(true))
-            .inactiveUsers(userRepository.countByIsActive(false))
+            .activeUsers(userRepository.countByIsActive(Boolean.TRUE))
+            .inactiveUsers(userRepository.countByIsActive(Boolean.FALSE))
             .pendingDriverApprovals(userRepository.countByDriverApprovalStatus(User.DriverApprovalStatus.PENDING))
             .approvedDrivers(userRepository.countByDriverApprovalStatus(User.DriverApprovalStatus.APPROVED))
             .rejectedDrivers(userRepository.countByDriverApprovalStatus(User.DriverApprovalStatus.REJECTED))
