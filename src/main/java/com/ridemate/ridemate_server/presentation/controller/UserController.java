@@ -56,16 +56,14 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden - Insufficient permissions"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     })
-    public ResponseEntity<ApiResponse<String>> getUserById(@PathVariable Long id) {
-        
-        
+    public ResponseEntity<ApiResponse<UserDto>> getUserById(@PathVariable Long id) {
         if (id == null || id <= 0) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "User not found"));
         }
 
-        return ResponseEntity.ok(ApiResponse.success("User retrieved successfully", 
-                "User with ID: " + id));
+        UserDto userDto = userService.getUserById(id);
+        return ResponseEntity.ok(ApiResponse.success("User retrieved successfully", userDto));
     }
 
     @GetMapping("/health")

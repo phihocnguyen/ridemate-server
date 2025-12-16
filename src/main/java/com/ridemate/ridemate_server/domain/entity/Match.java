@@ -41,6 +41,9 @@ public class Match extends BaseEntity {
     // Formula: distance * COIN_PER_KM
     private Integer coin;
 
+    // Actual fare amount in VND that passenger pays
+    private Integer fare;
+
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 

@@ -32,6 +32,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public UserDto getUserById(Long userId) {
+        return getUserProfile(userId);
+    }
+
+    @Override
     @Transactional
     public UserDto updateDriverStatus(Long userId, UpdateDriverStatusRequest request) {
         User user = userRepository.findById(userId)
