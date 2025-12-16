@@ -25,12 +25,12 @@ public class CloudinaryService {
         params.put("folder", folder);
         params.put("resource_type", "image");
         params.put("overwrite", true);
-        params.put("transformation", new Object[]{
-                new Object[]{"width", 1000},
-                new Object[]{"height", 1000},
-                new Object[]{"crop", "limit"},
-                new Object[]{"quality", "auto"}
-        });
+        // params.put("transformation", new Object[]{
+        //         new Object[]{"width", 1000},
+        //         new Object[]{"height", 1000},
+        //         new Object[]{"crop", "limit"},
+        //         new Object[]{"quality", "auto"}
+        // });
 
         Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
         return (String) uploadResult.get("secure_url");

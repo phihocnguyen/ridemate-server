@@ -56,4 +56,15 @@ public class MatchResponse {
     // ✅ NEW: Optional message for additional info
     @Schema(description = "Additional message (e.g. 'No drivers available')")
     private String message;
+
+    // Fields for broadcast matching
+    private String passengerAvatar;
+    private Double passengerRating;
+    private Integer passengerReviews;
+
+    private String driverAvatar;
+    private Double driverRating;
+    private String vehicleModel;
+    private String licensePlate;
+    private Integer estimatedPrice;
 }

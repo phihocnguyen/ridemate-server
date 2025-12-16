@@ -1,10 +1,16 @@
 package com.ridemate.ridemate_server.application.service.match.impl;
 
 import com.ridemate.ridemate_server.application.dto.match.BookRideRequest;
+import com.ridemate.ridemate_server.application.dto.match.BroadcastDriverRequest;
+import com.ridemate.ridemate_server.application.dto.match.BroadcastPassengerRequest;
 import com.ridemate.ridemate_server.application.dto.match.DriverCandidate;
-import com.ridemate.ridemate_server.application.dto.match.MatchResponse;
 import com.ridemate.ridemate_server.application.dto.match.UpdateMatchStatusRequest;
 import com.ridemate.ridemate_server.application.mapper.MatchMapper;
+import com.ridemate.ridemate_server.application.dto.match.FindMatchesRequest;
+import com.ridemate.ridemate_server.application.dto.match.MatchResponse;
+import com.ridemate.ridemate_server.application.dto.user.UserDto;
+import com.ridemate.ridemate_server.application.mapper.UserMapper;
+import com.ridemate.ridemate_server.application.service.user.UserService;
 import com.ridemate.ridemate_server.application.service.match.CoinCalculationService;
 import com.ridemate.ridemate_server.application.service.match.DriverMatchingService;
 import com.ridemate.ridemate_server.application.service.match.MatchService;
@@ -22,11 +28,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class MatchServiceImpl implements MatchService {
+
+    // Temporary storage for broadcasts (in production, use Redis or database)
+    private static final List<BroadcastDriverRequest> driverBroadcasts = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static final List<BroadcastPassengerRequest> passengerBroadcasts = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static final java.util.Map<Long, BroadcastDriverRequest> driverBroadcastMap = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<Long, BroadcastPassengerRequest> passengerBroadcastMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Autowired
     private MatchRepository matchRepository;
@@ -51,6 +64,12 @@ public class MatchServiceImpl implements MatchService {
     
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     @Transactional
@@ -174,12 +193,8 @@ public class MatchServiceImpl implements MatchService {
     @Override
     @Transactional
     public MatchResponse acceptRide(Long matchId, Long driverId) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new ResourceNotFoundException("Match not found with id: " + matchId));
-
-        if (match.getStatus() != Match.MatchStatus.WAITING) {
-            throw new IllegalArgumentException("Match is no longer available");
-        }
+        // First try to find existing match
+        Match match = matchRepository.findById(matchId).orElse(null);
 
         User driver = userRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
@@ -195,11 +210,62 @@ public class MatchServiceImpl implements MatchService {
         
         Vehicle vehicle = vehicles.get(0);
 
-        match.setDriver(driver);
-        match.setVehicle(vehicle);
-        match.setStatus(Match.MatchStatus.ACCEPTED);
+        if (match != null) {
+            // Existing match from database
+            if (match.getStatus() != Match.MatchStatus.WAITING) {
+                throw new IllegalArgumentException("Match is no longer available");
+            }
 
-        match = matchRepository.save(match);
+            match.setDriver(driver);
+            match.setVehicle(vehicle);
+            match.setStatus(Match.MatchStatus.ACCEPTED);
+            match = matchRepository.save(match);
+        } else {
+            // Check if this is a broadcast match (matchId is actually passengerId)
+            BroadcastPassengerRequest broadcast = passengerBroadcastMap.get(matchId);
+            if (broadcast == null) {
+                throw new ResourceNotFoundException("Broadcast match not found for passenger: " + matchId);
+            }
+
+            // Create new match from broadcast data
+            User passenger = userRepository.findById(matchId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Passenger not found with id: " + matchId));
+
+            if (vehicle == null) {
+                throw new IllegalArgumentException("Driver does not have an approved vehicle");
+            }
+
+            match = new Match();
+            match.setPassenger(passenger);
+            match.setDriver(driver);
+            match.setVehicle(vehicle);
+            match.setPickupAddress(broadcast.getPickupAddress());
+            match.setDestinationAddress(broadcast.getDestinationAddress());
+            match.setPickupLatitude(broadcast.getPickupLatitude());
+            match.setPickupLongitude(broadcast.getPickupLongitude());
+            match.setDestinationLatitude(broadcast.getDestinationLatitude());
+            match.setDestinationLongitude(broadcast.getDestinationLongitude());
+            
+            try {
+                Integer calculatedCoin = coinCalculationService.calculateCoinFromCoordinates(
+                    broadcast.getPickupLatitude(), broadcast.getPickupLongitude(),
+                    broadcast.getDestinationLatitude(), broadcast.getDestinationLongitude()
+                );
+                match.setCoin(calculatedCoin != null ? calculatedCoin : 25);
+                match.setFare(25); // Default fare, should be calculated based on pricing rules
+            } catch (Exception e) {
+                log.warn("Failed to calculate coin cost, using default: {}", e.getMessage());
+                match.setCoin(25); // Default fallback
+                match.setFare(25); // Default fare fallback
+            }
+            
+            match.setStatus(Match.MatchStatus.ACCEPTED);
+            match = matchRepository.save(match);
+
+            // Remove from broadcast maps
+            passengerBroadcastMap.remove(matchId);
+            passengerBroadcasts.remove(broadcast);
+        }
 
         // ===== UPDATE DRIVER METRICS =====
         driver.setTotalRidesAccepted(driver.getTotalRidesAccepted() + 1);
@@ -207,7 +273,7 @@ public class MatchServiceImpl implements MatchService {
         userRepository.save(driver);
 
         log.info("Driver {} accepted match {}. Total rides accepted: {}", 
-                driverId, matchId, driver.getTotalRidesAccepted());
+                driverId, match.getId(), driver.getTotalRidesAccepted());
 
         return matchMapper.toResponse(match);
     }
@@ -306,5 +372,143 @@ public class MatchServiceImpl implements MatchService {
         }
 
         return matchMapper.toResponse(match);
+    }
+
+    @Override
+    public void broadcastAsDriver(Long driverId, BroadcastDriverRequest request) {
+        log.info("Driver {} broadcasting for passengers from ({}, {}) to ({}, {})",
+                driverId, request.getPickupLatitude(), request.getPickupLongitude(),
+                request.getDestinationLatitude(), request.getDestinationLongitude());
+
+        driverBroadcastMap.put(driverId, request);
+        driverBroadcasts.add(request);
+    }
+
+    @Override
+    public void broadcastAsPassenger(Long passengerId, BroadcastPassengerRequest request) {
+        log.info("Passenger {} broadcasting for drivers from ({}, {}) to ({}, {})",
+                passengerId, request.getPickupLatitude(), request.getPickupLongitude(),
+                request.getDestinationLatitude(), request.getDestinationLongitude());
+
+        passengerBroadcastMap.put(passengerId, request);
+        passengerBroadcasts.add(request);
+    }
+
+    @Override
+    public List<MatchResponse> findMatches(Long userId, FindMatchesRequest request) {
+        List<MatchResponse> matches = new java.util.ArrayList<>();
+
+        if ("driver".equals(request.getType())) {
+            // Driver tìm passengers đang broadcast
+            for (Map.Entry<Long, BroadcastPassengerRequest> entry : passengerBroadcastMap.entrySet()) {
+                BroadcastPassengerRequest broadcast = entry.getValue();
+                // Simple matching: check if locations are close (within 5km)
+                double distance = calculateDistance(
+                    request.getPickupLatitude(), request.getPickupLongitude(),
+                    broadcast.getPickupLatitude(), broadcast.getPickupLongitude()
+                );
+                if (distance <= 5.0) { // 5km radius
+                    // Create a MatchResponse for display
+                    MatchResponse response = new MatchResponse();
+                    response.setId(entry.getKey()); // Use passenger ID as match ID temporarily
+                    response.setPassengerId(entry.getKey()); // Set real passenger ID
+                    response.setPickupAddress(broadcast.getPickupAddress());
+                    response.setDestinationAddress(broadcast.getDestinationAddress());
+                    response.setPickupLatitude(broadcast.getPickupLatitude());
+                    response.setPickupLongitude(broadcast.getPickupLongitude());
+                    response.setDestinationLatitude(broadcast.getDestinationLatitude());
+                    response.setDestinationLongitude(broadcast.getDestinationLongitude());
+                    
+                    // Fetch real passenger info
+                    try {
+                        UserDto passenger = userService.getUserById(entry.getKey());
+                        response.setPassengerName(passenger.getFullName() != null ? passenger.getFullName() : "Passenger " + entry.getKey());
+                        response.setPassengerPhone(passenger.getPhoneNumber());
+                        response.setPassengerAvatar(passenger.getProfilePictureUrl() != null ? passenger.getProfilePictureUrl() : "https://i.pravatar.cc/150?img=" + entry.getKey());
+                        response.setPassengerRating(4.5); // Default rating, could be calculated from reviews
+                        response.setPassengerReviews(10); // Default reviews count
+                    } catch (Exception e) {
+                        // Fallback to mock data if user fetch fails
+                        response.setPassengerName("Passenger " + entry.getKey());
+                        response.setPassengerPhone("0901234567");
+                        response.setPassengerAvatar("https://i.pravatar.cc/150?img=" + entry.getKey());
+                        response.setPassengerRating(4.5);
+                        response.setPassengerReviews(10);
+                    }
+                    
+                    matches.add(response);
+                }
+            }
+        } else if ("passenger".equals(request.getType())) {
+            // Passenger tìm drivers đang broadcast
+            for (Map.Entry<Long, BroadcastDriverRequest> entry : driverBroadcastMap.entrySet()) {
+                BroadcastDriverRequest broadcast = entry.getValue();
+                // Simple matching: check if locations are close (within 5km)
+                double distance = calculateDistance(
+                    request.getPickupLatitude(), request.getPickupLongitude(),
+                    broadcast.getPickupLatitude(), broadcast.getPickupLongitude()
+                );
+                if (distance <= 5.0) { // 5km radius
+                    // Create a MatchResponse for display
+                    MatchResponse response = new MatchResponse();
+                    response.setId(entry.getKey()); // Use driver ID as match ID temporarily
+                    response.setDriverId(entry.getKey()); // Set real driver ID
+                    response.setPickupAddress(broadcast.getPickupAddress());
+                    response.setDestinationAddress(broadcast.getDestinationAddress());
+                    response.setPickupLatitude(broadcast.getPickupLatitude());
+                    response.setPickupLongitude(broadcast.getPickupLongitude());
+                    response.setDestinationLatitude(broadcast.getDestinationLatitude());
+                    response.setDestinationLongitude(broadcast.getDestinationLongitude());
+                    response.setEstimatedPrice(broadcast.getEstimatedPrice());
+                    
+                    // Fetch real driver info
+                    try {
+                        UserDto driver = userService.getUserById(entry.getKey());
+                        response.setDriverName(driver.getFullName() != null ? driver.getFullName() : "Driver " + entry.getKey());
+                        response.setDriverPhone(driver.getPhoneNumber());
+                        response.setDriverAvatar(driver.getProfilePictureUrl() != null ? driver.getProfilePictureUrl() : "https://i.pravatar.cc/150?img=" + (entry.getKey() + 10));
+                        response.setDriverRating(4.7); // Default rating, could be calculated from reviews
+                        
+                        // Fetch driver's approved vehicle
+                        List<Vehicle> vehicles = vehicleRepository.findByDriverIdAndStatus(entry.getKey(), Vehicle.VehicleStatus.APPROVED);
+                        if (!vehicles.isEmpty()) {
+                            Vehicle vehicle = vehicles.get(0);
+                            response.setVehicleModel(vehicle.getMake() + " " + vehicle.getModel());
+                            response.setLicensePlate(vehicle.getLicensePlate());
+                        } else {
+                            response.setVehicleModel("Toyota Vios");
+                            response.setLicensePlate("30A-12345");
+                        }
+                    } catch (Exception e) {
+                        // Fallback to mock data if user fetch fails
+                        response.setDriverName("Driver " + entry.getKey());
+                        response.setDriverPhone("0901234568");
+                        response.setDriverAvatar("https://i.pravatar.cc/150?img=" + (entry.getKey() + 10));
+                        response.setDriverRating(4.7);
+                        response.setVehicleModel("Toyota Vios");
+                        response.setLicensePlate("30A-12345");
+                    }
+                    
+                    matches.add(response);
+                }
+            }
+        }
+
+        log.info("Found {} matches for user {} of type {}", matches.size(), userId, request.getType());
+        return matches;
+    }
+
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Radius of the earth in km
+
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double distance = R * c;
+
+        return distance;
     }
 }
