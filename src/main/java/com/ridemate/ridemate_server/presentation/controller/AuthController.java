@@ -9,7 +9,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/auth")
 @Tag(name = "Authentication", description = "User authentication endpoints")
+@Slf4j
 public class AuthController {
 
     @Autowired
@@ -64,6 +69,27 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout user")
+    public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest request, HttpServletResponse httpResponse) {
+        log.info("Logging out user");
+
+        Object userIdAttr = request != null ? request.getAttribute("userId") : null;
+        if (!(userIdAttr instanceof Long)) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Unauthorized"));
+        }
+
+        Cookie loginCookie = new Cookie("LOGGED_IN", "");
+        loginCookie.setPath("/");
+        loginCookie.setHttpOnly(false);
+        loginCookie.setMaxAge(0);
+        httpResponse.addCookie(loginCookie);
+        authService.logout(request);
+        return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
     }
 
     @PostMapping("/refresh-token")

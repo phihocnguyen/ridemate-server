@@ -122,7 +122,17 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         // Public endpoints
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(
+                                "/auth/register/**",
+                                "/auth/login",
+                                "/auth/refresh-token",
+                                "/auth/send-otp",
+                                "/auth/verify-otp",
+                                "/auth/social-login"
+                        ).permitAll()
+
+                        // Logout requires authentication
+                        .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/upload/**").permitAll()
                         .requestMatchers("/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui.html").permitAll()
