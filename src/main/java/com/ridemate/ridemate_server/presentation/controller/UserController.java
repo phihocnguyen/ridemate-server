@@ -1,6 +1,7 @@
 package com.ridemate.ridemate_server.presentation.controller;
 
 import com.ridemate.ridemate_server.application.dto.user.UpdateDriverStatusRequest;
+import com.ridemate.ridemate_server.application.dto.user.UpdateProfileRequest;
 import com.ridemate.ridemate_server.application.dto.user.UserDto;
 import com.ridemate.ridemate_server.application.service.user.UserService;
 import com.ridemate.ridemate_server.presentation.dto.response.ApiResponse;
@@ -45,6 +46,40 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Profile retrieved successfully", userDto));
     }
 
+    @PatchMapping
+    @Operation(summary = "Update user profile", description = "Update current user's profile information (partial update)")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile updated successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserDto.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request data"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized - Invalid or missing JWT token"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<ApiResponse<UserDto>> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request,
+            @AuthenticationPrincipal Long userId) {
+        
+        System.out.println("=== UPDATE PROFILE DEBUG ===");
+        System.out.println("User ID: " + userId);
+        System.out.println("Request: " + request);
+        
+        if (userId == null) {
+            System.out.println("ERROR: userId is null");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Invalid token"));
+        }
+        
+        try {
+            UserDto updatedUser = userService.updateProfile(userId, request);
+            System.out.println("SUCCESS: Profile updated");
+            return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", updatedUser));
+        } catch (Exception e) {
+            System.out.println("ERROR: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")

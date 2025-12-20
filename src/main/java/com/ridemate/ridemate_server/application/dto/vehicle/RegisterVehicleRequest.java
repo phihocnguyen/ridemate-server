@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 public class RegisterVehicleRequest {
 
     @NotBlank(message = "License plate is required")
-    @Pattern(regexp = "^[0-9]{2}[A-Z]{1,2}-[0-9]{4,5}$", message = "License plate must be in format: XX-YZZZZ or XX-YY-ZZZZ")
+    @Pattern(regexp = "^[0-9]{2}[-]?[A-Z0-9]{1,2}[\\s-]?[0-9]{4,5}$", message = "License plate must be in format: XX-XX YYYY (e.g., 54-L1 9999) or XX-YY-ZZZZ")
     @Schema(description = "Vehicle license plate", example = "30A-12345")
     private String licensePlate;
 
