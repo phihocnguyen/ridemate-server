@@ -34,9 +34,9 @@ public class DriverMatchingService {
     private VehicleRepository vehicleRepository;
 
     // Configuration constants
-    private static final double INITIAL_SEARCH_RADIUS_KM = 5.0;
-    private static final double MAX_SEARCH_RADIUS_KM = 20.0;
-    private static final double RADIUS_INCREMENT_KM = 3.0;
+    private static final double INITIAL_SEARCH_RADIUS_KM = 2.0;  // Start with 2km (priority range)
+    private static final double MAX_SEARCH_RADIUS_KM = 7.0;      // Maximum 7km
+    private static final double RADIUS_INCREMENT_KM = 2.0;       // Expand by 2km each time (2km -> 4km -> 6km -> 7km)
     private static final int MAX_CANDIDATES_TO_RETURN = 5;
     
     // Scoring weights (must sum to 1.0)

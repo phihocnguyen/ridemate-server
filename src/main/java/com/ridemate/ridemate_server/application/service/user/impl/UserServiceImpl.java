@@ -1,6 +1,7 @@
 package com.ridemate.ridemate_server.application.service.user.impl;
 
 import com.ridemate.ridemate_server.application.dto.user.UpdateDriverStatusRequest;
+import com.ridemate.ridemate_server.application.dto.user.UpdateProfileRequest;
 import com.ridemate.ridemate_server.application.dto.user.UserDto;
 import com.ridemate.ridemate_server.application.mapper.UserMapper;
 import com.ridemate.ridemate_server.application.service.user.UserService;
@@ -65,6 +66,33 @@ public class UserServiceImpl implements UserService {
             user.setCurrentLongitude(request.getLongitude());
             user.setLastLocationUpdate(LocalDateTime.now());
         }
+
+        user = userRepository.save(user);
+        
+        return userMapper.toUserDto(user);
+    }
+
+    @Override
+    @Transactional
+    public UserDto updateProfile(Long userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        // Update fields if provided (only fields that exist in User entity)
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName());
+        }
+        if (request.getEmail() != null) {
+            user.setEmail(request.getEmail());
+        }
+        if (request.getPhoneNumber() != null) {
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getProfilePictureUrl() != null) {
+            user.setProfilePictureUrl(request.getProfilePictureUrl());
+        }
+        // Note: dob, address, bankName, bankAccountNumber are not in User entity
+        // They might be in a separate Profile entity or not implemented yet
 
         user = userRepository.save(user);
         
