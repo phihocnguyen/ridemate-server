@@ -29,7 +29,7 @@ public class UserController {
 
     @GetMapping("/me")
     @Operation(summary = "Get current user profile", description = "Retrieve the profile of the currently authenticated user")
-    @SecurityRequirement(name = "Bearer Authentication")
+    @SecurityRequirement(name = "bearerAuth")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User profile retrieved successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserDto.class))),
@@ -48,7 +48,7 @@ public class UserController {
 
     @PatchMapping
     @Operation(summary = "Update user profile", description = "Update current user's profile information (partial update)")
-    @SecurityRequirement(name = "Bearer Authentication")
+    @SecurityRequirement(name = "bearerAuth")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Profile updated successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserDto.class))),

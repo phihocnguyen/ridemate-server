@@ -20,7 +20,7 @@ import java.util.List;
 @RequestMapping("/admin/users")
 @Tag(name = "User Management", description = "Admin endpoints for managing users and driver approvals")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class UserManagementController {
 
     private final UserManagementService userManagementService;

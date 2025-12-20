@@ -34,15 +34,20 @@ public class VehicleServiceImpl implements VehicleService {
         User driver = userRepository.findById(driverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
 
-        // ===== AUTO UPGRADE PASSENGER TO DRIVER =====
+        // ===== SET DRIVER APPROVAL STATUS TO PENDING =====
+        // When a user registers a vehicle, they are applying to become a driver
+        // Admin must approve before they can actually be a driver
         if (driver.getUserType() == User.UserType.PASSENGER) {
-            log.info("User {} is PASSENGER, auto-upgrading to DRIVER on first vehicle registration", driverId);
-            driver.setUserType(User.UserType.DRIVER);
-            // Auto set to ONLINE on first vehicle registration
-            driver.setDriverStatus(User.DriverStatus.ONLINE);
+            log.info("User {} is applying to become a DRIVER by registering vehicle", driverId);
+            driver.setDriverApprovalStatus(User.DriverApprovalStatus.PENDING);
             driver = userRepository.save(driver);
-        } else if (driver.getUserType() != User.UserType.DRIVER) {
-            throw new IllegalArgumentException("User must be a passenger or driver to register a vehicle");
+        } else if (driver.getUserType() == User.UserType.DRIVER) {
+            // Already a driver, check if they have pending approval
+            if (driver.getDriverApprovalStatus() != User.DriverApprovalStatus.APPROVED) {
+                throw new IllegalArgumentException("Your driver application is still pending or was rejected. Please wait for admin approval.");
+            }
+        } else {
+            throw new IllegalArgumentException("Only passengers can apply to become drivers");
         }
 
         // Check if license plate already exists
@@ -119,6 +124,32 @@ public class VehicleServiceImpl implements VehicleService {
 
         vehicle.setStatus(newStatus);
         vehicle = vehicleRepository.save(vehicle);
+        
+        // ===== AUTO APPROVE DRIVER WHEN VEHICLE IS APPROVED =====
+        if (newStatus == Vehicle.VehicleStatus.APPROVED) {
+            User driver = vehicle.getDriver();
+            if (driver.getDriverApprovalStatus() == User.DriverApprovalStatus.PENDING) {
+                log.info("Auto-approving driver {} because vehicle {} was approved", driver.getId(), vehicleId);
+                driver.setUserType(User.UserType.DRIVER);
+                driver.setDriverApprovalStatus(User.DriverApprovalStatus.APPROVED);
+                driver.setDriverStatus(User.DriverStatus.OFFLINE); // Default to OFFLINE, driver can go ONLINE later
+                driver.setRejectionReason(null);
+                userRepository.save(driver);
+            }
+        }
+        
+        // ===== AUTO REJECT DRIVER APPLICATION WHEN VEHICLE IS REJECTED =====
+        if (newStatus == Vehicle.VehicleStatus.REJECTED) {
+            User driver = vehicle.getDriver();
+            if (driver.getDriverApprovalStatus() == User.DriverApprovalStatus.PENDING) {
+                log.info("Auto-rejecting driver {} because vehicle {} was rejected", driver.getId(), vehicleId);
+                driver.setDriverApprovalStatus(User.DriverApprovalStatus.REJECTED);
+                driver.setRejectionReason(request.getRejectionReason() != null 
+                    ? request.getRejectionReason() 
+                    : "Vehicle registration was rejected");
+                userRepository.save(driver);
+            }
+        }
         
         log.info("Vehicle status updated: {} -> {} for vehicle {}", 
                 vehicle.getStatus(), newStatus, vehicleId);

@@ -31,7 +31,7 @@ import java.util.Map;
 @RequestMapping("/admin")
 @Tag(name = "Admin Management", description = "Admin management endpoints")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminController {
 
     private final AdminService adminService;
