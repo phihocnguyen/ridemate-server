@@ -8,8 +8,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 /**
  * Service to simulate continuous driver location updates
@@ -21,6 +24,7 @@ import java.util.Random;
 public class DriverLocationService {
 
     private final UserRepository userRepository;
+    private final SupabaseRealtimeService supabaseRealtimeService;
     private static final Random RANDOM = new Random();
     
     // Simulate drivers moving around Ho Chi Minh city center
@@ -56,6 +60,13 @@ public class DriverLocationService {
         driver.setLastLocationUpdate(LocalDateTime.now());
 
         userRepository.save(driver);
+
+        supabaseRealtimeService.updateDriverLocation(
+                driverId,
+                newLat,
+                newLon,
+                driver.getDriverStatus().name()
+        );
 
         log.debug("Driver {} location updated to ({}, {})", driverId, newLat, newLon);
     }
@@ -104,6 +115,90 @@ public class DriverLocationService {
 
         userRepository.save(driver);
 
+        if (driver.getDriverStatus() == User.DriverStatus.ONLINE) {
+            supabaseRealtimeService.updateDriverLocation(
+                    driverId,
+                    latitude,
+                    longitude,
+                    driver.getDriverStatus().name()
+            );
+        }
+
         log.info("Driver {} location set to ({}, {})", driverId, latitude, longitude);
+    }
+
+    @Transactional
+    public void updateDriverLocation(Long driverId, Double latitude, Double longitude) {
+        setDriverLocation(driverId, latitude, longitude);
+    }
+
+    @Transactional
+    public void setDriverStatus(Long driverId, User.DriverStatus status) {
+        User driver = userRepository.findById(driverId)
+                .orElseThrow(() -> new RuntimeException("Driver not found: " + driverId));
+
+        driver.setDriverStatus(status);
+        userRepository.save(driver);
+
+        if (status == User.DriverStatus.ONLINE) {
+            supabaseRealtimeService.updateDriverLocation(
+                    driverId,
+                    driver.getCurrentLatitude(),
+                    driver.getCurrentLongitude(),
+                    status.name()
+            );
+        } else {
+            supabaseRealtimeService.removeDriverLocation(driverId);
+        }
+
+        log.info("Driver {} status changed to {}", driverId, status);
+    }
+
+    public List<Map<String, Object>> getOnlineDriversWithLocations() {
+        List<User> onlineDrivers = getOnlineDrivers();
+        
+        return onlineDrivers.stream()
+                .map(driver -> {
+                    Map<String, Object> driverData = new HashMap<>();
+                    driverData.put("driver_id", driver.getId());
+                    driverData.put("driver_name", driver.getFullName());
+                    driverData.put("latitude", driver.getCurrentLatitude());
+                    driverData.put("longitude", driver.getCurrentLongitude());
+                    driverData.put("driver_status", driver.getDriverStatus().name());
+                    driverData.put("last_updated", driver.getLastLocationUpdate());
+                    return driverData;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void setDriverOnlineStatus(Long driverId, String status) {
+        User driver = userRepository.findById(driverId)
+                .orElseThrow(() -> new RuntimeException("Driver not found: " + driverId));
+
+        User.DriverStatus driverStatus = User.DriverStatus.valueOf(status.toUpperCase());
+        driver.setDriverStatus(driverStatus);
+        
+        if (driverStatus == User.DriverStatus.ONLINE) {
+            if (driver.getCurrentLatitude() == null || driver.getCurrentLongitude() == null) {
+                driver.setCurrentLatitude(BASE_LAT);
+                driver.setCurrentLongitude(BASE_LON);
+            }
+            driver.setLastLocationUpdate(LocalDateTime.now());
+            
+            userRepository.save(driver);
+            
+            supabaseRealtimeService.updateDriverLocation(
+                    driverId,
+                    driver.getCurrentLatitude(),
+                    driver.getCurrentLongitude(),
+                    driverStatus.name()
+            );
+        } else {
+            userRepository.save(driver);
+            supabaseRealtimeService.removeDriverLocation(driverId);
+        }
+
+        log.info("Driver {} status changed to {}", driverId, driverStatus);
     }
 }

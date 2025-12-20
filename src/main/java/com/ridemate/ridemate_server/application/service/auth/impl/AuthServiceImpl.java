@@ -44,6 +44,9 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private OtpNotificationService otpNotificationService;
 
+    @Autowired
+    private com.ridemate.ridemate_server.application.service.driver.DriverLocationService driverLocationService;
+
     @Value("${STREAM_API_KEY}")
     private String streamApiKey;
 
@@ -170,6 +173,15 @@ public class AuthServiceImpl implements AuthService {
         }
 
         user = userRepository.save(user);
+
+        if (user.getUserType() == User.UserType.DRIVER && user.getDriverStatus() == User.DriverStatus.ONLINE) {
+            try {
+                driverLocationService.setDriverOnlineStatus(user.getId(), "ONLINE");
+                log.info("Driver {} location synced to Supabase on login", user.getId());
+            } catch (Exception e) {
+                log.warn("Failed to sync driver location to Supabase on login: {}", e.getMessage());
+            }
+        }
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
