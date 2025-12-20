@@ -1,6 +1,9 @@
 package com.ridemate.ridemate_server.presentation.controller;
 
 import com.ridemate.ridemate_server.application.dto.match.BookRideRequest;
+import com.ridemate.ridemate_server.application.dto.match.BroadcastDriverRequest;
+import com.ridemate.ridemate_server.application.dto.match.BroadcastPassengerRequest;
+import com.ridemate.ridemate_server.application.dto.match.FindMatchesRequest;
 import com.ridemate.ridemate_server.application.dto.match.MatchResponse;
 import com.ridemate.ridemate_server.application.dto.match.UpdateMatchStatusRequest;
 import com.ridemate.ridemate_server.application.service.match.MatchService;
@@ -117,6 +120,55 @@ public class MatchController {
     public ResponseEntity<ApiResponse<List<MatchResponse>>> getWaitingMatches() {
         List<MatchResponse> response = matchService.getWaitingMatches();
         return ResponseEntity.ok(ApiResponse.success("Waiting rides retrieved successfully", response));
+    }
+
+    @PostMapping("/broadcast/driver")
+    @Operation(summary = "Broadcast as driver", description = "Driver broadcasts availability for passengers")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Broadcast successful"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<ApiResponse<String>> broadcastAsDriver(
+            @Valid @RequestBody BroadcastDriverRequest request,
+            @AuthenticationPrincipal Long driverId) {
+        
+        matchService.broadcastAsDriver(driverId, request);
+        return ResponseEntity.ok(ApiResponse.success("Driver broadcast successful", null));
+    }
+
+    @PostMapping("/broadcast/passenger")
+    @Operation(summary = "Broadcast as passenger", description = "Passenger broadcasts need for drivers")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Broadcast successful"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<ApiResponse<String>> broadcastAsPassenger(
+            @Valid @RequestBody BroadcastPassengerRequest request,
+            @AuthenticationPrincipal Long passengerId) {
+        
+        matchService.broadcastAsPassenger(passengerId, request);
+        return ResponseEntity.ok(ApiResponse.success("Passenger broadcast successful", null));
+    }
+
+    @PostMapping("/find")
+    @Operation(summary = "Find matches", description = "Find available matches based on criteria")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Matches found",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = MatchResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<ApiResponse<List<MatchResponse>>> findMatches(
+            @Valid @RequestBody FindMatchesRequest request,
+            @AuthenticationPrincipal Long userId) {
+        
+        List<MatchResponse> response = matchService.findMatches(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Matches found", response));
     }
 }
 

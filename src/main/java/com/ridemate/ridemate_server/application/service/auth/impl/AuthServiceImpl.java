@@ -9,6 +9,7 @@ import com.ridemate.ridemate_server.domain.entity.OTP;
 import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.domain.repository.OTPRepository;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -385,5 +386,26 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(expiresIn)
                 .user(userDto)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void logout(HttpServletRequest request) {
+        Object userIdAttr = request != null ? request.getAttribute("userId") : null;
+        if (!(userIdAttr instanceof Long userId)) {
+            log.info("Logout called without authenticated user (no userId attribute).");
+            return;
+        }
+
+        userRepository.findById(userId).ifPresent(user -> {
+            if (user.getUserType() == User.UserType.DRIVER) {
+                user.setDriverStatus(User.DriverStatus.OFFLINE);
+                user.setLastLocationUpdate(LocalDateTime.now());
+                userRepository.save(user);
+                log.info("Driver {} set to OFFLINE on logout.", userId);
+            } else {
+                log.info("User {} logged out.", userId);
+            }
+        });
     }
 }

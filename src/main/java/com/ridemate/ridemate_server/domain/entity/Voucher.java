@@ -35,6 +35,6 @@ public class Voucher extends BaseEntity {
     private Boolean isActive = true;
 
     public enum VoucherType {
-        DISCOUNT, PRIORITY_MATCH, FREE_RIDE
+        FOOD_AND_BEVERAGE, SHOPPING, VEHICLE_SERVICE
     }
 }

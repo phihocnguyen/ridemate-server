@@ -6,6 +6,7 @@ import com.ridemate.ridemate_server.application.dto.user.UserDto;
 
 public interface UserService {
     UserDto getUserProfile(Long userId);
+    UserDto getUserById(Long userId);
     UserDto updateDriverStatus(Long userId, UpdateDriverStatusRequest request);
     UserDto updateProfile(Long userId, UpdateProfileRequest request);
 }
