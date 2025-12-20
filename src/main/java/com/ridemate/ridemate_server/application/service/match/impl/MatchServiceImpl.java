@@ -105,6 +105,7 @@ public class MatchServiceImpl implements MatchService {
                 .destinationLatitude(request.getDestinationLatitude())
                 .destinationLongitude(request.getDestinationLongitude())
                 .coin(coin)
+                .fare(coin != null ? coin : 0)
                 .status(Match.MatchStatus.PENDING)  // Start as PENDING
                 .build();
 
