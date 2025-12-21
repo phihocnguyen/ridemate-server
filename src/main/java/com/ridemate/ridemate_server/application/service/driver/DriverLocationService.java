@@ -115,16 +115,16 @@ public class DriverLocationService {
 
         userRepository.save(driver);
 
-        if (driver.getDriverStatus() == User.DriverStatus.ONLINE) {
-            supabaseRealtimeService.updateDriverLocation(
-                    driverId,
-                    latitude,
-                    longitude,
-                    driver.getDriverStatus().name()
-            );
-        }
+        // Always update Supabase for real-time tracking (even during rides)
+        supabaseRealtimeService.updateDriverLocation(
+                driverId,
+                latitude,
+                longitude,
+                driver.getDriverStatus() != null ? driver.getDriverStatus().name() : "UNKNOWN"
+        );
 
-        log.info("Driver {} location set to ({}, {})", driverId, latitude, longitude);
+        log.info("Driver {} location set to ({}, {}) with status {}", 
+                driverId, latitude, longitude, driver.getDriverStatus());
     }
 
     @Transactional

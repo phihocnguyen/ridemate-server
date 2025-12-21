@@ -60,6 +60,7 @@ public class SupabaseRealtimeService {
         
         try {
             Map<String, Object> locationData = new HashMap<>();
+            locationData.put("driver_id", driverId); // Ensure ID is present for UPSERT
             locationData.put("latitude", latitude);
             locationData.put("longitude", longitude);
             locationData.put("driver_status", driverStatus);
@@ -68,19 +69,24 @@ public class SupabaseRealtimeService {
             String locationPoint = String.format("POINT(%f %f)", longitude, latitude);
             locationData.put("location", locationPoint);
 
+            // Use UPSERT (POST with Prefer: resolution=merge-duplicates)
             supabaseConfig.getWebClient()
-                    .patch()
+                    .post()
                     .uri(uriBuilder -> uriBuilder
                             .path("/driver_locations")
-                            .queryParam("driver_id", "eq." + driverId)
+                            .queryParam("on_conflict", "driver_id")
                             .build())
+                    .header("Prefer", "resolution=merge-duplicates")
                     .bodyValue(locationData)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .doOnSuccess(response -> log.debug("Driver {} location updated in Supabase", driverId))
+                    .doOnSuccess(response -> log.debug("Driver {} location updated (upsert) in Supabase", driverId))
                     .doOnError(error -> {
-                        log.warn("Failed to update driver {} location, trying insert", driverId);
-                        publishDriverLocation(driverId, latitude, longitude, driverStatus);
+                         log.error("Failed to update driver {} location: {}", driverId, error.getMessage());
+                         if (error instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
+                            org.springframework.web.reactive.function.client.WebClientResponseException ex = (org.springframework.web.reactive.function.client.WebClientResponseException) error;
+                            log.error("Response body: {}", ex.getResponseBodyAsString());
+                        }
                     })
                     .onErrorResume(e -> Mono.empty())
                     .subscribe();
@@ -122,11 +128,10 @@ public class SupabaseRealtimeService {
         }
         
         try {
-            String query = String.format(
-                    "location.st_dwithin(POINT(%f %f)::geography, %f)",
-                    longitude, latitude, radiusKm * 1000
-            );
-
+            // Note: PostGIS query simulation for Supabase Rest API
+            // Ideally we should use an RPC call, but for simplicity we filter by status first
+            // and perform client-side filtering if complex query is not supported unless we setup RPC
+            
             return supabaseConfig.getWebClient()
                     .get()
                     .uri(uriBuilder -> uriBuilder
@@ -144,6 +149,36 @@ public class SupabaseRealtimeService {
         } catch (Exception e) {
             log.error("Error getting nearby drivers from Supabase", e);
             return Mono.just(List.of());
+        }
+    }
+
+    public void publishMatch(Map<String, Object> matchData) {
+        if (supabaseConfig.getWebClient() == null) {
+            log.debug("Supabase not configured, skipping match publish");
+            return;
+        }
+
+        try {
+            supabaseConfig.getWebClient()
+                    .post()
+                    .uri("/matches")
+                    .bodyValue(matchData)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .doOnSuccess(response -> log.info("Match {} published to Supabase: {}", matchData.get("id"), response))
+                    .doOnError(error -> {
+                        if (error instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
+                            org.springframework.web.reactive.function.client.WebClientResponseException ex = (org.springframework.web.reactive.function.client.WebClientResponseException) error;
+                            log.error("Failed to publish match. Status: {}, Body: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+                        } else {
+                            log.error("Failed to publish match: {}", error.getMessage());
+                        }
+                    })
+                    .onErrorResume(e -> Mono.empty())
+                    .subscribe();
+
+        } catch (Exception e) {
+            log.error("Error publishing match to Supabase", e);
         }
     }
 }

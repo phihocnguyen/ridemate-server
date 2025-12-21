@@ -55,6 +55,12 @@ public class Match extends BaseEntity {
     @OneToOne(mappedBy = "match", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Session session;
 
+    // Store matched driver candidates as JSON for Supabase realtime broadcasting
+    // This allows drivers to receive the full candidate list via realtime subscription
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "JSONB")
+    private String matchedDriverCandidates;
+
     public enum MatchStatus {
         PENDING,     // No drivers available yet (queued)
         WAITING,     // Driver(s) found, waiting for acceptance

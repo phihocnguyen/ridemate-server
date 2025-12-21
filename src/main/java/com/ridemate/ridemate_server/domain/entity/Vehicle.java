@@ -38,6 +38,9 @@ public class Vehicle extends BaseEntity {
     @Column(nullable = false, length = 500, columnDefinition = "VARCHAR(500)")
     private String registrationDocumentUrl;
 
+    @Column(length = 500, columnDefinition = "VARCHAR(500)")
+    private String licensePlateImageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

@@ -77,6 +77,7 @@ public class VehicleServiceImpl implements VehicleService {
                 .capacity(request.getCapacity())
                 .vehicleType(Vehicle.VehicleType.valueOf(request.getVehicleType()))
                 .registrationDocumentUrl(request.getRegistrationDocumentUrl())
+                .licensePlateImageUrl(request.getLicensePlateImageUrl())
                 .status(Vehicle.VehicleStatus.PENDING)
                 .build();
 
@@ -180,6 +181,7 @@ public class VehicleServiceImpl implements VehicleService {
                 .capacity(vehicle.getCapacity())
                 .vehicleType(vehicle.getVehicleType().toString())
                 .registrationDocumentUrl(vehicle.getRegistrationDocumentUrl())
+                .licensePlateImageUrl(vehicle.getLicensePlateImageUrl())
                 .status(vehicle.getStatus().toString())
                 .createdAt(vehicle.getCreatedAt())
                 .updatedAt(vehicle.getUpdatedAt())
