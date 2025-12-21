@@ -356,7 +356,7 @@ public class AdminServiceImpl implements AdminService {
     private TripManagementDto convertToTripManagementDto(Match match) {
         User driver = match.getDriver();
         User passenger = match.getPassenger();
-        
+
         TripManagementDto.DriverInfo driverInfo = null;
         if (driver != null) {
             var vehicle = vehicleRepository.findByDriverIdAndStatus(

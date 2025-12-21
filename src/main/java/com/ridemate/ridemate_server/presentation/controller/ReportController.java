@@ -3,6 +3,7 @@ package com.ridemate.ridemate_server.presentation.controller;
 import com.ridemate.ridemate_server.application.dto.report.CreateReportRequest;
 import com.ridemate.ridemate_server.application.dto.report.ReportResponse;
 import com.ridemate.ridemate_server.application.service.report.ReportService;
+import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,7 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,22 +22,26 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/reports")
-@Tag(name = "Reports", description = "Incident and violation reporting")
+@Tag(name = "Reports", description = "Incident and violation reporting for Users")
+@RequiredArgsConstructor
+@SecurityRequirement(name = "Bearer Authentication")
 public class ReportController {
 
-    @Autowired
-    private ReportService reportService;
+    private final ReportService reportService;
 
     @PostMapping
     @Operation(summary = "Create a new report", description = "Submit a report about a trip or user")
-    @SecurityRequirement(name = "bearerAuth")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Report submitted successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportResponse.class)))
     })
     public ResponseEntity<ApiResponse<ReportResponse>> createReport(
             @Valid @RequestBody CreateReportRequest request,
-            @AuthenticationPrincipal Long userId) {
+            @AuthenticationPrincipal User currentUser) {
+        
+        // Lấy ID từ User Principal (thay đổi tùy theo config security của bạn, ở đây giả sử currentUser là User entity)
+        // Nếu config trả về Long thì sửa thành @AuthenticationPrincipal Long userId
+        Long userId = currentUser.getId(); 
         
         ReportResponse response = reportService.createReport(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -45,17 +50,16 @@ public class ReportController {
 
     @GetMapping("/my")
     @Operation(summary = "Get my reports", description = "Get history of reports submitted by current user")
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<List<ReportResponse>>> getMyReports(
-            @AuthenticationPrincipal Long userId) {
+            @AuthenticationPrincipal User currentUser) {
         
+        Long userId = currentUser.getId();
         List<ReportResponse> response = reportService.getMyReports(userId);
         return ResponseEntity.ok(ApiResponse.success("Reports retrieved successfully", response));
     }
     
     @GetMapping("/{id}")
     @Operation(summary = "Get report details", description = "Get details of a specific report")
-    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<ReportResponse>> getReportById(@PathVariable Long id) {
         ReportResponse response = reportService.getReportById(id);
         return ResponseEntity.ok(ApiResponse.success("Report details retrieved", response));
