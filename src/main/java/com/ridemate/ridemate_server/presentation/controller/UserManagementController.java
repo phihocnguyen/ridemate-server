@@ -26,7 +26,7 @@ public class UserManagementController {
     private final UserManagementService userManagementService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get all users with filters", 
         description = "Get paginated list of users with optional filters (userType, isActive, driverApprovalStatus, searchTerm)"
@@ -65,7 +65,7 @@ public class UserManagementController {
     }
 
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get user statistics", 
         description = "Get overall statistics about users, drivers, and driver approvals"
@@ -76,7 +76,7 @@ public class UserManagementController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get user by ID", 
         description = "Get detailed information about a specific user"
@@ -89,7 +89,7 @@ public class UserManagementController {
     }
 
     @GetMapping("/pending-drivers")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get pending driver approvals", 
         description = "Get list of users waiting for driver approval"
@@ -100,7 +100,7 @@ public class UserManagementController {
     }
 
     @PostMapping("/{id}/approve-driver")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Approve driver application", 
         description = "Approve a user's application to become a driver"
@@ -113,7 +113,7 @@ public class UserManagementController {
     }
 
     @PostMapping("/{id}/reject-driver")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Reject driver application", 
         description = "Reject a user's application to become a driver with a reason"
@@ -127,7 +127,7 @@ public class UserManagementController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Update user active status", 
         description = "Enable or disable a user account"
