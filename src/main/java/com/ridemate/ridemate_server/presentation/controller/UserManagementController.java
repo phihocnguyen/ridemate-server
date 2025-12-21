@@ -26,98 +26,60 @@ public class UserManagementController {
     private final UserManagementService userManagementService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Get all users with filters", 
-        description = "Get paginated list of users with optional filters (userType, isActive, driverApprovalStatus, searchTerm)"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
+    @Operation(summary = "Get all users with filters")
     public ResponseEntity<ApiResponse<UserManagementPageDto>> getAllUsers(
-            @Parameter(description = "Filter by user type (DRIVER, PASSENGER, ADMIN)")
             @RequestParam(required = false) User.UserType userType,
-            
-            @Parameter(description = "Filter by active status")
             @RequestParam(required = false) Boolean isActive,
-            
-            @Parameter(description = "Filter by driver approval status (NONE, PENDING, APPROVED, REJECTED)")
             @RequestParam(required = false) User.DriverApprovalStatus driverApprovalStatus,
-            
-            @Parameter(description = "Search by name, phone, or email")
             @RequestParam(required = false) String searchTerm,
-            
-            @Parameter(description = "Page number (0-indexed)")
             @RequestParam(defaultValue = "0") int page,
-            
-            @Parameter(description = "Page size")
             @RequestParam(defaultValue = "10") int size,
-            
-            @Parameter(description = "Sort by field")
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            
-            @Parameter(description = "Sort direction (ASC or DESC)")
             @RequestParam(defaultValue = "DESC") String sortDirection
     ) {
         UserManagementPageDto result = userManagementService.getAllUsers(
             userType, isActive, driverApprovalStatus, searchTerm, 
             page, size, sortBy, sortDirection
         );
-        
         return ResponseEntity.ok(ApiResponse.success("Users retrieved successfully", result));
     }
 
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Get user statistics", 
-        description = "Get overall statistics about users, drivers, and driver approvals"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Get user statistics")
     public ResponseEntity<ApiResponse<UserStatisticsDto>> getUserStatistics() {
         UserStatisticsDto stats = userManagementService.getUserStatistics();
         return ResponseEntity.ok(ApiResponse.success("Statistics retrieved successfully", stats));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Get user by ID", 
-        description = "Get detailed information about a specific user"
-    )
-    public ResponseEntity<ApiResponse<UserManagementDto>> getUserById(
-            @PathVariable Long id
-    ) {
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Get user by ID")
+    public ResponseEntity<ApiResponse<UserManagementDto>> getUserById(@PathVariable Long id) {
         UserManagementDto user = userManagementService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.success("User retrieved successfully", user));
     }
 
     @GetMapping("/pending-drivers")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Get pending driver approvals", 
-        description = "Get list of users waiting for driver approval"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Get pending driver approvals")
     public ResponseEntity<ApiResponse<List<UserManagementDto>>> getPendingDriverApprovals() {
         List<UserManagementDto> pendingDrivers = userManagementService.getPendingDriverApprovals();
         return ResponseEntity.ok(ApiResponse.success("Pending drivers retrieved successfully", pendingDrivers));
     }
 
     @PostMapping("/{id}/approve-driver")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Approve driver application", 
-        description = "Approve a user's application to become a driver"
-    )
-    public ResponseEntity<ApiResponse<UserManagementDto>> approveDriver(
-            @PathVariable Long id
-    ) {
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Approve driver application")
+    public ResponseEntity<ApiResponse<UserManagementDto>> approveDriver(@PathVariable Long id) {
         UserManagementDto approvedUser = userManagementService.approveDriver(id);
         return ResponseEntity.ok(ApiResponse.success("Driver application approved successfully", approvedUser));
     }
 
     @PostMapping("/{id}/reject-driver")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Reject driver application", 
-        description = "Reject a user's application to become a driver with a reason"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Reject driver application")
     public ResponseEntity<ApiResponse<UserManagementDto>> rejectDriver(
             @PathVariable Long id,
             @Valid @RequestBody DriverApprovalRequest request
@@ -127,11 +89,8 @@ public class UserManagementController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Update user active status", 
-        description = "Enable or disable a user account"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Update user active status")
     public ResponseEntity<ApiResponse<UserManagementDto>> updateUserStatus(
             @PathVariable Long id,
             @Valid @RequestBody UserStatusUpdateRequest request
