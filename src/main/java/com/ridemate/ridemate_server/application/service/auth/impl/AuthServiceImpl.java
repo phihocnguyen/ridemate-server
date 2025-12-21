@@ -375,6 +375,7 @@ public class AuthServiceImpl implements AuthService {
                 .userType(user.getUserType().toString())
                 .coins(user.getCoins())
                 .rating(user.getRating())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .build();
 
         return AuthResponse.builder()

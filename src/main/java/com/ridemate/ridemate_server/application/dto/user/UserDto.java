@@ -28,8 +28,17 @@ public class UserDto {
     @Schema(description = "User's profile picture URL", example = "https://ociacc.com/wp-content/uploads/2019/03/blank-profile-picture-973460_1280.png")
     private String profilePictureUrl;
 
-    @Schema(description = "User's average rating", example = "4.5")
-    private Float rating;
+    @Schema(description = "User's date of birth", example = "1990-01-01")
+    private java.time.LocalDate dob;
+
+    @Schema(description = "User's address", example = "123 Nguyen Hue, District 1, HCMC")
+    private String address;
+
+    @Schema(description = "Bank name", example = "Vietcombank")
+    private String bankName;
+
+    @Schema(description = "Bank account number", example = "1234567890")
+    private String bankAccountNumber;
 
     @Schema(description = "User's reward points", example = "100")
     private Integer coins;

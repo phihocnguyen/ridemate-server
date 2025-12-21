@@ -130,7 +130,7 @@ public class VehicleServiceImpl implements VehicleService {
     public VehicleResponse getMyVehicle(Long driverId) {
         List<Vehicle> vehicles = vehicleRepository.findByDriverId(driverId);
         if (vehicles.isEmpty()) {
-            throw new ResourceNotFoundException("No vehicle found for this driver");
+            return null;
         }
         // Return the most recent vehicle
         Vehicle vehicle = vehicles.get(vehicles.size() - 1);
