@@ -47,8 +47,7 @@ public class AdminServiceImpl implements AdminService {
                 .totalVehicles(vehicleRepository.count())
                 .totalCompletedTrips(matchRepository.countByStatus(com.ridemate.ridemate_server.domain.entity.Match.MatchStatus.COMPLETED))
                 .totalCancelledTrips(matchRepository.countByStatus(com.ridemate.ridemate_server.domain.entity.Match.MatchStatus.CANCELLED))
-                // --- SỬA Ở ĐÂY: Đếm Report thay vì Feedback ---
-                .totalReports(reportRepository.count()) 
+                .totalReports(reportRepository.count()) // Đếm từ bảng Report
                 .build();
     }
 
@@ -164,7 +163,6 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<ActiveTripDto> getActiveTrips() {
-        // Get all sessions that are active (IN_PROGRESS matches)
         List<Session> activeSessions = sessionRepository.findByIsActiveTrue();
         
         return activeSessions.stream()
@@ -358,7 +356,6 @@ public class AdminServiceImpl implements AdminService {
     private TripManagementDto convertToTripManagementDto(Match match) {
         User driver = match.getDriver();
         User passenger = match.getPassenger();
-        Session session = match.getSession();
         
         TripManagementDto.DriverInfo driverInfo = null;
         if (driver != null) {
@@ -398,24 +395,24 @@ public class AdminServiceImpl implements AdminService {
                     .build());
         }
         
-        // --- ĐÃ SỬA Ở ĐÂY: Lấy địa chỉ trực tiếp từ MATCH ---
         String startLocation = match.getPickupAddress(); 
         String endLocation = match.getDestinationAddress();
-        
         if (startLocation == null) startLocation = "Điểm đón chưa xác định";
         if (endLocation == null) endLocation = "Điểm đến chưa xác định";
-        // ---------------------------------------------------
-        
+
+        LocalDateTime displayTime = match.getStartTime() != null ? match.getStartTime() : match.getCreatedAt();
+
         return TripManagementDto.builder()
                 .id(match.getId())
                 .driver(driverInfo)
                 .startLocation(startLocation)
                 .endLocation(endLocation)
-                .startTime(match.getStartTime()) 
+                .startTime(displayTime)
                 .endTime(match.getEndTime())
                 .status(match.getStatus())
+                .fare(match.getFare() != null ? match.getFare().doubleValue() : 0.0) 
                 .createdAt(match.getCreatedAt())
-                .totalPassengers(passengers.size())
+                .matchedRidersCount(passengers.size()) 
                 .passengers(passengers)
                 .build();
     }
