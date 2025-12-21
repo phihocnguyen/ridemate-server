@@ -29,7 +29,7 @@ public class ReportManagementController {
     private final ReportManagementService reportManagementService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get all reports with filters",
         description = "Get paginated list of reports with optional filters (status, category, searchTerm)"
@@ -64,7 +64,7 @@ public class ReportManagementController {
     }
 
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get report statistics",
         description = "Get overall statistics about reports by status"
@@ -75,7 +75,7 @@ public class ReportManagementController {
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get pending reports",
         description = "Get list of reports waiting for admin action"
@@ -86,7 +86,7 @@ public class ReportManagementController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get report details",
         description = "Get detailed information about a specific report"
@@ -99,7 +99,7 @@ public class ReportManagementController {
     }
 
     @PostMapping("/{id}/process")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Mark report as processing",
         description = "Admin starts processing a pending report"
@@ -114,7 +114,7 @@ public class ReportManagementController {
     }
 
     @PostMapping("/{id}/resolve")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Resolve report with action",
         description = "Admin resolves a report with specific action (lock, warning, etc.)"
@@ -129,7 +129,7 @@ public class ReportManagementController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Reject report",
         description = "Admin rejects a report (invalid/false report)"
