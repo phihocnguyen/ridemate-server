@@ -35,7 +35,7 @@ public class RegisterRequest {
     @Schema(description = "User type (DRIVER or PASSENGER)", example = "PASSENGER", allowableValues = {"DRIVER", "PASSENGER"})
     private String userType;
 
-    @Schema(description = "User's profile picture URL", example = "https://example.com/profile.jpg")
+    @Schema(description = "User's profile picture URL", example = "https://ociacc.com/wp-content/uploads/2019/03/blank-profile-picture-973460_1280.png")
     private String profilePictureUrl;
 
     @Schema(description = "Face ID data for biometric authentication (base64 encoded)", example = "base64_face_data")
