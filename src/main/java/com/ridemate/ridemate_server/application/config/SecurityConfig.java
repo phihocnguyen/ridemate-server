@@ -30,6 +30,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.client.RestTemplate;
+import static org.springframework.security.config.Customizer.withDefaults;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -114,7 +115,7 @@ public class SecurityConfig {
         };
     }
 
-    @Bean
+  @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -128,21 +129,22 @@ public class SecurityConfig {
                                 "/auth/refresh-token",
                                 "/auth/send-otp",
                                 "/auth/verify-otp",
-                                "/auth/social-login"
+                                "/auth/social-login",
+                                "/upload/**",          // Upload ảnh công khai
+                                "/api-docs/**",        // Swagger
+                                "/swagger-ui.html",
+                                "/swagger-ui/**"
                         ).permitAll()
 
                         // Logout requires authentication
                         .requestMatchers("/auth/logout").authenticated()
-                        .requestMatchers("/upload/**").permitAll()
-                        .requestMatchers("/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-ui.html").permitAll()
-                        .requestMatchers("/swagger-ui/**").permitAll()
+                        
+                        // --- SỬA ĐOẠN NÀY ---
+                        // Đổi hasRole("ADMIN") thành hasAuthority("ADMIN")
+                        .requestMatchers("/admin/**").hasAuthority("ADMIN")
+                        
+                        // Các endpoint khác
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        
-                        // Admin endpoints - protected by @PreAuthorize
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        
-                        // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions

@@ -38,14 +38,14 @@ public class AdminController {
     private final MissionService missionService;
 
     @GetMapping("/dashboard/stats")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa: dùng hasAuthority
     @Operation(summary = "Get dashboard statistics", description = "Get overall statistics for admin dashboard")
     public ResponseEntity<AdminDashboardStatsDto> getDashboardStats() {
         return ResponseEntity.ok(adminService.getDashboardStats());
     }
 
     @GetMapping("/dashboard/charts")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get chart data", description = "Get chart data for various metrics (users, sessions, messages, vouchers, revenue)")
     public ResponseEntity<AdminChartDataDto> getChartData(
             @Parameter(description = "Chart type: users, sessions, messages, vouchers, revenue")
@@ -54,21 +54,21 @@ public class AdminController {
     }
 
     @GetMapping("/dashboard/stats/trips")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get trip statistics", description = "Get detailed statistics about trips (pending, matched, in-progress, completed, cancelled)")
     public ResponseEntity<TripStatsDto> getTripStats() {
         return ResponseEntity.ok(adminService.getTripStats());
     }
 
     @GetMapping("/dashboard/active-trips")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get active trips", description = "Get list of currently active trips (matched or in-progress)")
     public ResponseEntity<List<ActiveTripDto>> getActiveTrips() {
         return ResponseEntity.ok(adminService.getActiveTrips());
     }
 
     @GetMapping("/dashboard/top-users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get top users", description = "Get top users by coins/points and rating")
     public ResponseEntity<List<TopUserDto>> getTopUsers(
             @Parameter(description = "Number of top users to return")
@@ -77,14 +77,14 @@ public class AdminController {
     }
 
     @GetMapping("/dashboard/stats/membership")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get membership statistics", description = "Get membership tier distribution and percentages")
     public ResponseEntity<MembershipStatsDto> getMembershipStats() {
         return ResponseEntity.ok(adminService.getMembershipStats());
     }
 
     @GetMapping("/dashboard/stats/revenue")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get revenue statistics", description = "Get revenue statistics (daily, weekly, monthly, by date, top vouchers)")
     public ResponseEntity<RevenueStatsDto> getRevenueStats() {
         return ResponseEntity.ok(adminService.getRevenueStats());
@@ -92,7 +92,7 @@ public class AdminController {
     
     // Trip Management endpoints
     @GetMapping("/trips")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get all trips", description = "Get paginated list of trips with optional status filter")
     public ResponseEntity<Page<TripManagementDto>> getAllTrips(
             @Parameter(description = "Filter by status: PENDING, WAITING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED")
@@ -119,25 +119,23 @@ public class AdminController {
     }
     
     @GetMapping("/trips/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get trip by ID", description = "Get detailed information about a specific trip")
     public ResponseEntity<TripManagementDto> getTripById(
             @Parameter(description = "Trip ID")
             @PathVariable Long id) {
         return ResponseEntity.ok(adminService.getTripById(id));
     }
-    
-    // ==================== Mission Management ====================
-    
+        
     @PostMapping("/missions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Create new mission", description = "Create a new mission for users")
     public ResponseEntity<MissionDto> createMission(@Valid @RequestBody CreateMissionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(missionService.createMission(request));
     }
     
     @PutMapping("/missions/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Update mission", description = "Update an existing mission")
     public ResponseEntity<MissionDto> updateMission(
             @PathVariable Long id,
@@ -146,7 +144,7 @@ public class AdminController {
     }
     
     @DeleteMapping("/missions/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Delete mission", description = "Delete a mission")
     public ResponseEntity<Void> deleteMission(@PathVariable Long id) {
         missionService.deleteMission(id);
@@ -154,7 +152,7 @@ public class AdminController {
     }
     
     @GetMapping("/missions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get all missions", description = "Get all missions with pagination and filtering")
     public ResponseEntity<Page<MissionDto>> getAllMissions(
             @RequestParam(defaultValue = "0") int page,
@@ -175,14 +173,14 @@ public class AdminController {
     }
     
     @GetMapping("/missions/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get mission by ID", description = "Get detailed information about a specific mission")
     public ResponseEntity<MissionDto> getMissionById(@PathVariable Long id) {
         return ResponseEntity.ok(missionService.getMissionById(id));
     }
     
     @GetMapping("/missions/stats")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
     @Operation(summary = "Get mission statistics", description = "Get statistics about missions")
     public ResponseEntity<Map<String, Long>> getMissionStats() {
         Long activeMissions = missionService.getActiveMissionCount();
