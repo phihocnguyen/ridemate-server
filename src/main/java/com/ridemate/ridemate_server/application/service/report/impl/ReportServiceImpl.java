@@ -10,7 +10,6 @@ import com.ridemate.ridemate_server.domain.repository.MatchRepository;
 import com.ridemate.ridemate_server.domain.repository.ReportRepository;
 import com.ridemate.ridemate_server.domain.repository.ReportSpecification;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
-import com.ridemate.ridemate_server.presentation.dto.admin.ReportManagementDto;
 import com.ridemate.ridemate_server.presentation.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +34,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
     private final MatchRepository matchRepository;
 
     // =================================================================
-    // PHẦN 1: USER APP (Tạo và xem báo cáo cá nhân)
+    // PHẦN 1: USER APP
     // =================================================================
 
     @Override
@@ -56,7 +55,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
                     .orElseThrow(() -> new ResourceNotFoundException("Match not found"));
         }
 
-        // FIX LỖI 1: Không set createdAt trong Builder
+        // FIX LỖI 1: Không gọi .createdAt() trong builder (vì Lombok Builder không thấy field của lớp cha)
         Report report = Report.builder()
                 .reporter(reporter)
                 .reportedUser(reportedUser)
@@ -68,7 +67,6 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
                 .status(Report.ReportStatus.PENDING)
                 .build();
 
-        // FIX LỖI 1: Set createdAt bằng setter (hoặc để JPA tự handle nếu có @PrePersist)
         report.setCreatedAt(LocalDateTime.now());
 
         report = reportRepository.save(report);
@@ -89,9 +87,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
         return mapToResponse(report);
     }
 
-    // =================================================================
-    // PHẦN 2: ADMIN DASHBOARD (Quản lý báo cáo)
-    // =================================================================
+    // PHẦN 2: ADMIN DASHBOARD
 
     @Override
     public ReportManagementPageDto getAllReports(Report.ReportStatus status, Report.ReportCategory category, String searchTerm, int page, int size, String sortBy, String sortDirection) {
@@ -108,7 +104,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
                 .collect(Collectors.toList());
 
         return ReportManagementPageDto.builder()
-                .reports(reportDtos) // Lưu ý: Tên field là 'reports' trong PageDto
+                .reports(reportDtos)
                 .pageNo(reportPage.getNumber())
                 .pageSize(reportPage.getSize())
                 .totalElements(reportPage.getTotalElements())
@@ -162,10 +158,8 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
         
         report.setStatus(Report.ReportStatus.RESOLVED);
         
-        // FIX LỖI 2: Chuyển Enum từ Request sang Enum của Entity
         if (request.getActionType() != null) {
             try {
-                // Lấy tên Enum từ Request -> Tìm Enum tương ứng trong Entity
                 Report.ResolutionAction action = Report.ResolutionAction.valueOf(request.getActionType().name());
                 report.setResolutionAction(action); 
             } catch (IllegalArgumentException e) {
@@ -194,9 +188,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
         return mapToManagementDto(reportRepository.save(report));
     }
 
-    // =================================================================
-    // MAPPERS (Mapping thủ công để tránh lỗi)
-    // =================================================================
+
 
     private ReportResponse mapToResponse(Report report) {
         return ReportResponse.builder()
@@ -211,8 +203,11 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
 
     private ReportManagementDto mapToManagementDto(Report report) {
         ReportManagementDto.UserInfo reporterInfo = null;
+        String reporterName = "Unknown"; 
+        
         if (report.getReporter() != null) {
             User r = report.getReporter();
+            reporterName = r.getFullName();
             reporterInfo = ReportManagementDto.UserInfo.builder()
                     .id(r.getId())
                     .fullName(r.getFullName())
@@ -235,19 +230,20 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
         return ReportManagementDto.builder()
                 .id(report.getId())
                 .reporter(reporterInfo)
+                .reporterName(reporterName)
                 .reportedUser(reportedUserInfo)
                 .matchId(report.getMatch() != null ? report.getMatch().getId() : null)
                 .title(report.getTitle())
                 .description(report.getDescription())
-                .category(report.getCategory())
-                .status(report.getStatus())
+                .category(report.getCategory() != null ? report.getCategory().name() : null)
+                .status(report.getStatus() != null ? report.getStatus().name() : null)
                 .evidenceUrl(report.getEvidenceUrl())
-                // FIX LỖI 3: Truyền đúng kiểu Enum cho DTO (vì file DTO bạn gửi dùng Enum)
-                .resolutionAction(report.getResolutionAction()) 
+                .resolutionAction(report.getResolutionAction() != null ? report.getResolutionAction().name() : null)
                 .resolutionNotes(report.getResolutionNotes())
                 .resolvedAt(report.getResolvedAt())
                 .resolvedBy(report.getResolvedBy())
                 .createdAt(report.getCreatedAt())
+                .updatedAt(report.getUpdatedAt())
                 .build();
     }
 }
