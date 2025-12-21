@@ -38,8 +38,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Extract authorities from userType
                 List<SimpleGrantedAuthority> authorities = Collections.emptyList();
                 if (userType != null && !userType.isEmpty()) {
-                    // Spring Security requires "ROLE_" prefix for hasRole() checks
-                    authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + userType));
+                    // --- SỬA Ở ĐÂY: BỎ TIỀN TỐ "ROLE_" ---
+                    // Chúng ta dùng userType trực tiếp làm Authority (VD: "ADMIN")
+                    authorities = Collections.singletonList(new SimpleGrantedAuthority(userType));
                     log.debug("User {} has authorities: {}", userId, authorities);
                 }
 
