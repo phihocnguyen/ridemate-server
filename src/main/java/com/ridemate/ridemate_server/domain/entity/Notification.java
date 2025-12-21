@@ -34,6 +34,7 @@ public class Notification extends BaseEntity {
     private Boolean isRead = false;
 
     public enum NotificationType {
+        MATCH_REQUEST,
         MATCH_ACCEPTED,
         MATCH_CANCELLED,
         NEW_MESSAGE,
