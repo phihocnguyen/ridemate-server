@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/users/driver-application")
 @Tag(name = "Driver Application", description = "Endpoints for users to apply to become drivers")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class DriverApplicationController {
 
     private final DriverApplicationService driverApplicationService;

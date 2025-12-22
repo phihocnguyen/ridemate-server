@@ -37,6 +37,12 @@ public class Match extends BaseEntity {
     private Double destinationLatitude;
     private Double destinationLongitude;
 
+    // Distance in meters
+    private Double distance;
+
+    // Duration in minutes (calculated when ride is completed)
+    private Integer duration;
+
     // Coin cost calculated based on distance (km)
     // Formula: distance * COIN_PER_KM
     private Integer coin;
@@ -54,6 +60,12 @@ public class Match extends BaseEntity {
 
     @OneToOne(mappedBy = "match", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Session session;
+
+    // Store matched driver candidates as JSON for Supabase realtime broadcasting
+    // This allows drivers to receive the full candidate list via realtime subscription
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "JSONB")
+    private String matchedDriverCandidates;
 
     public enum MatchStatus {
         PENDING,     // No drivers available yet (queued)

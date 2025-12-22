@@ -23,6 +23,7 @@ import com.ridemate.ridemate_server.domain.repository.MatchRepository;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
 import com.ridemate.ridemate_server.domain.repository.VehicleRepository;
 import com.ridemate.ridemate_server.presentation.exception.ResourceNotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -127,7 +128,25 @@ public class MatchServiceImpl implements MatchService {
         } else {
             // Update match status to WAITING (có driver available)
             match.setStatus(Match.MatchStatus.WAITING);
+            
+            // Save match first WITHOUT candidates to avoid type casting issues
             match = matchRepository.save(match);
+            
+            // ===== SAVE CANDIDATES TO DATABASE FOR SUPABASE REALTIME =====
+            // Use native query with explicit JSONB cast to avoid Hibernate type issues
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                String candidatesJson = objectMapper.writeValueAsString(candidates);
+                
+                // Update using native SQL with JSONB cast
+                matchRepository.updateMatchedDriverCandidates(match.getId(), candidatesJson);
+                
+                log.info("Serialized {} candidates to JSON for match {}", candidates.size(), match.getId());
+            } catch (Exception e) {
+                log.error("Failed to serialize candidates to JSON: {}", e.getMessage());
+                // Continue even if serialization fails
+            }
+            
             
             log.info("Found {} driver candidates for match {}. Top candidate: Driver {} (score: {:.3f})",
                     candidates.size(), match.getId(), 
@@ -168,7 +187,51 @@ public class MatchServiceImpl implements MatchService {
     public MatchResponse getMatchById(Long matchId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match not found"));
-        return matchMapper.toResponse(match);
+        
+        MatchResponse response = matchMapper.toResponse(match);
+        
+        // ✅ If match has a driver, get CURRENT driver location from User entity
+        if (match.getDriver() != null) {
+            User driver = match.getDriver();
+            Vehicle vehicle = match.getVehicle();
+            
+            if (driver.getCurrentLatitude() != null && driver.getCurrentLongitude() != null) {
+                DriverCandidate currentDriverInfo = DriverCandidate.builder()
+                        .driverId(driver.getId())
+                        .driverName(driver.getFullName())
+                        .driverPhone(driver.getPhoneNumber())
+                        .vehicleId(vehicle != null ? vehicle.getId() : null)
+                        .vehicleInfo(vehicle != null ? 
+                            vehicle.getMake() + " " + vehicle.getModel() + " - " + vehicle.getLicensePlate() : null)
+                        .currentLatitude(driver.getCurrentLatitude())
+                        .currentLongitude(driver.getCurrentLongitude())
+                        .driverRating(driver.getRating())
+                        .build();
+                
+                response.setMatchedDriverCandidates(List.of(currentDriverInfo));
+                
+                log.debug("✅ Loaded current driver location for match {}: ({}, {})", 
+                        matchId, driver.getCurrentLatitude(), driver.getCurrentLongitude());
+            } else {
+                log.debug("⚠️ Driver {} for match {} has no current location", 
+                        driver.getId(), matchId);
+            }
+        } else if (match.getMatchedDriverCandidates() != null) {
+            // Fallback: Parse matchedDriverCandidates from JSON if no driver assigned yet
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                List<DriverCandidate> candidates = objectMapper.readValue(
+                    match.getMatchedDriverCandidates(), 
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, DriverCandidate.class)
+                );
+                response.setMatchedDriverCandidates(candidates);
+                log.debug("✅ Loaded {} driver candidates from JSON for match {}", candidates.size(), matchId);
+            } catch (Exception e) {
+                log.warn("⚠️ Failed to parse matchedDriverCandidates for match {}: {}", matchId, e.getMessage());
+            }
+        }
+        
+        return response;
     }
 
     @Override
@@ -276,7 +339,31 @@ public class MatchServiceImpl implements MatchService {
         log.info("Driver {} accepted match {}. Total rides accepted: {}", 
                 driverId, match.getId(), driver.getTotalRidesAccepted());
 
-        return matchMapper.toResponse(match);
+        // ✅ Build response with CURRENT driver location from User entity
+        MatchResponse response = matchMapper.toResponse(match);
+        
+        // Create a single DriverCandidate with current driver location
+        if (driver.getCurrentLatitude() != null && driver.getCurrentLongitude() != null) {
+            DriverCandidate currentDriverInfo = DriverCandidate.builder()
+                    .driverId(driver.getId())
+                    .driverName(driver.getFullName())
+                    .driverPhone(driver.getPhoneNumber())
+                    .vehicleId(vehicle.getId())
+                    .vehicleInfo(vehicle.getMake() + " " + vehicle.getModel() + " - " + vehicle.getLicensePlate())
+                    .currentLatitude(driver.getCurrentLatitude())
+                    .currentLongitude(driver.getCurrentLongitude())
+                    .driverRating(driver.getRating())
+                    .build();
+            
+            response.setMatchedDriverCandidates(List.of(currentDriverInfo));
+            
+            log.info("✅ Driver {} current location: ({}, {})", 
+                    driverId, driver.getCurrentLatitude(), driver.getCurrentLongitude());
+        } else {
+            log.warn("⚠️ Driver {} has no current location in database", driverId);
+        }
+        
+        return response;
     }
 
     @Override

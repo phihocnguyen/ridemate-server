@@ -45,6 +45,9 @@ public class VehicleResponse {
     @Schema(description = "Registration document URL", example = "https://res.cloudinary.com/...")
     private String registrationDocumentUrl;
 
+    @Schema(description = "License plate image URL", example = "https://res.cloudinary.com/...")
+    private String licensePlateImageUrl;
+
     @Schema(description = "Vehicle status", example = "PENDING", allowableValues = {"PENDING", "APPROVED", "REJECTED", "INACTIVE"})
     private String status;
 

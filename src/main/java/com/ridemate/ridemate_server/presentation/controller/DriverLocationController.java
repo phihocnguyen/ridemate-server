@@ -12,13 +12,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/driver/location")
+@RequestMapping("/driver/location")
 @Tag(name = "Driver Location", description = "Real-time driver location tracking")
 @RequiredArgsConstructor
 public class DriverLocationController {
@@ -45,15 +44,18 @@ public class DriverLocationController {
     @GetMapping("/nearby")
     @Operation(summary = "Get nearby drivers", description = "Get all online drivers within specified radius")
     @SecurityRequirement(name = "bearerAuth")
-    public Mono<ResponseEntity<ApiResponse<List<Map<String, Object>>>>> getNearbyDrivers(
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getNearbyDrivers(
             @RequestParam Double latitude,
             @RequestParam Double longitude,
             @RequestParam(defaultValue = "7.0") Double radiusKm) {
 
-        return supabaseRealtimeService.getNearbyDrivers(latitude, longitude, radiusKm)
-                .map(drivers -> ResponseEntity.ok(
-                        ApiResponse.success("Nearby drivers retrieved successfully", drivers)
-                ));
+        List<Map<String, Object>> drivers = supabaseRealtimeService
+                .getNearbyDrivers(latitude, longitude, radiusKm)
+                .block(); // Block to convert Mono to synchronous
+        
+        return ResponseEntity.ok(
+                ApiResponse.success("Nearby drivers retrieved successfully", drivers)
+        );
     }
 
     @GetMapping("/online")

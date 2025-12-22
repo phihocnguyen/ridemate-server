@@ -17,5 +17,8 @@ public class UpdateVehicleStatusRequest {
     @NotBlank(message = "Status is required")
     @Schema(description = "New vehicle status", example = "APPROVED", allowableValues = {"APPROVED", "REJECTED", "INACTIVE"})
     private String status;
+    
+    @Schema(description = "Reason for rejection (optional, used when status is REJECTED)", example = "Invalid registration document")
+    private String rejectionReason;
 }
 

@@ -15,6 +15,7 @@ import com.ridemate.ridemate_server.application.service.admin.AdminTripDetailSer
 import com.ridemate.ridemate_server.application.service.admin.AdminVoucherAndMembershipService;
 import com.ridemate.ridemate_server.application.service.admin.AdminService;
 import com.ridemate.ridemate_server.application.service.mission.MissionService;
+import com.ridemate.ridemate_server.application.service.user.impl.UserSyncService;
 import com.ridemate.ridemate_server.domain.entity.Match.MatchStatus;
 import com.ridemate.ridemate_server.domain.entity.Mission;
 import com.ridemate.ridemate_server.presentation.dto.admin.*;
@@ -54,7 +55,7 @@ import java.util.List;
 @RequestMapping("/admin")
 @Tag(name = "Admin Management", description = "Admin management endpoints")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminController {
 
     private final AdminService adminService;
@@ -65,6 +66,7 @@ public class AdminController {
     private final AdminTripDetailService tripDetailService;
     private final AdminVoucherAndMembershipService voucherAndMembershipService;
     private final MissionService missionService;
+    private final UserSyncService userSyncService;
 
     @GetMapping("/dashboard/stats")
     @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa: dùng hasAuthority
@@ -139,5 +141,21 @@ public class AdminController {
     @Operation(summary = "Get membership tier statistics")
     public ResponseEntity<List<MembershipStatsResponse>> getMembershipStats() {
         return ResponseEntity.ok(voucherAndMembershipService.getMembershipStatistics());
+    }
+
+    @PostMapping("/users/{userId}/sync-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sync user ride statistics", description = "Sync totalRidesCompleted with actual COMPLETED matches")
+    public ResponseEntity<Map<String, String>> syncUserStats(@PathVariable Long userId) {
+        userSyncService.syncUserRideStats(userId);
+        return ResponseEntity.ok(Map.of("message", "User stats synced successfully"));
+    }
+
+    @PostMapping("/users/sync-all-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sync all users' ride statistics", description = "Sync totalRidesCompleted for all users (use with caution)")
+    public ResponseEntity<Map<String, String>> syncAllUsersStats() {
+        userSyncService.syncAllUsersRideStats();
+        return ResponseEntity.ok(Map.of("message", "All users' stats synced successfully"));
     }
 }

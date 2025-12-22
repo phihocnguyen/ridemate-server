@@ -43,6 +43,9 @@ public class UserDto {
     @Schema(description = "User's reward points", example = "100")
     private Integer coins;
 
+    @Schema(description = "Total rides completed by user", example = "25")
+    private Integer totalRides;
+
     @Schema(description = "User type (DRIVER or PASSENGER)", example = "PASSENGER")
     private String userType;
 

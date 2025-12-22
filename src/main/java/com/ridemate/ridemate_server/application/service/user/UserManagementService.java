@@ -2,8 +2,10 @@ package com.ridemate.ridemate_server.application.service.user;
 
 import com.ridemate.ridemate_server.application.dto.user.*;
 import com.ridemate.ridemate_server.domain.entity.User;
+import com.ridemate.ridemate_server.domain.entity.Vehicle;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
 import com.ridemate.ridemate_server.domain.repository.UserSpecification;
+import com.ridemate.ridemate_server.domain.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class UserManagementService {
 
     private final UserRepository userRepository;
+    private final VehicleRepository vehicleRepository;
 
     /**
      * Get all users with pagination and filters
@@ -89,6 +92,16 @@ public class UserManagementService {
         user.setRejectionReason(null);
         
         User updatedUser = userRepository.save(user);
+        
+        // Also approve all pending vehicles for this driver
+        List<Vehicle> pendingVehicles = vehicleRepository.findByDriverIdAndStatus(
+            userId, Vehicle.VehicleStatus.PENDING);
+        
+        for (Vehicle vehicle : pendingVehicles) {
+            vehicle.setStatus(Vehicle.VehicleStatus.APPROVED);
+            vehicleRepository.save(vehicle);
+        }
+        
         return mapToUserManagementDto(updatedUser);
     }
 
@@ -108,6 +121,16 @@ public class UserManagementService {
         user.setRejectionReason(rejectionReason);
         
         User updatedUser = userRepository.save(user);
+        
+        // Also reject all pending vehicles for this driver
+        List<Vehicle> pendingVehicles = vehicleRepository.findByDriverIdAndStatus(
+            userId, Vehicle.VehicleStatus.PENDING);
+        
+        for (Vehicle vehicle : pendingVehicles) {
+            vehicle.setStatus(Vehicle.VehicleStatus.REJECTED);
+            vehicleRepository.save(vehicle);
+        }
+        
         return mapToUserManagementDto(updatedUser);
     }
 

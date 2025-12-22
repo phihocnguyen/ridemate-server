@@ -23,7 +23,7 @@ import java.util.List;
 @RequestMapping("/admin/reports")
 @Tag(name = "Report Management", description = "Admin endpoints for managing user reports")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class ReportManagementController {
 
     private final ReportManagementService reportManagementService;

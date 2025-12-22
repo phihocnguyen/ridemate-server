@@ -49,8 +49,8 @@ public class DriverMatchingService {
     // ETA calculation: assume average speed 30 km/h in city
     private static final double AVERAGE_SPEED_KMH = 30.0;
     
-    // Location staleness check: reject locations older than 5 minutes
-    private static final int MAX_LOCATION_STALENESS_MINUTES = 5;
+    // Location staleness check: reject locations older than 60 minutes (extended for testing)
+    private static final int MAX_LOCATION_STALENESS_MINUTES = 60;
 
     /**
      * Find best matching drivers for a ride request
