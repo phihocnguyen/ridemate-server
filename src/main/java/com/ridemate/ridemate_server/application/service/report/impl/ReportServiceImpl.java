@@ -55,7 +55,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
                     .orElseThrow(() -> new ResourceNotFoundException("Match not found"));
         }
 
-        // FIX LỖI 1: Không gọi .createdAt() trong builder (vì Lombok Builder không thấy field của lớp cha)
+        // FIX LỖI: Không gọi .createdAt() trong builder
         Report report = Report.builder()
                 .reporter(reporter)
                 .reportedUser(reportedUser)
@@ -74,6 +74,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReportResponse> getMyReports(Long reporterId) {
         return reportRepository.findByReporterId(reporterId).stream()
                 .map(this::mapToResponse)
@@ -81,15 +82,19 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ReportResponse getReportById(Long reportId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResourceNotFoundException("Report not found"));
         return mapToResponse(report);
     }
 
+    // =================================================================
     // PHẦN 2: ADMIN DASHBOARD
+    // =================================================================
 
     @Override
+    @Transactional(readOnly = true) // QUAN TRỌNG: Giữ session để load Lazy User
     public ReportManagementPageDto getAllReports(Report.ReportStatus status, Report.ReportCategory category, String searchTerm, int page, int size, String sortBy, String sortDirection) {
         Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -125,6 +130,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReportManagementDto> getPendingReports() {
         return reportRepository.findByStatus(Report.ReportStatus.PENDING).stream()
                 .map(this::mapToManagementDto)
@@ -132,6 +138,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ReportManagementDto getAdminReportDetail(Long id) {
         Report report = reportRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Report not found"));
@@ -188,7 +195,9 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
         return mapToManagementDto(reportRepository.save(report));
     }
 
-
+    // =================================================================
+    // HELPER MAPPERS
+    // =================================================================
 
     private ReportResponse mapToResponse(Report report) {
         return ReportResponse.builder()
@@ -201,30 +210,41 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
                 .build();
     }
 
+    // FIX: Bọc Try-Catch để tránh lỗi khi User bị null hoặc không tìm thấy (Data Integrity Error)
     private ReportManagementDto mapToManagementDto(Report report) {
         ReportManagementDto.UserInfo reporterInfo = null;
-        String reporterName = "Unknown"; 
+        String reporterName = "Unknown/Deleted User"; 
         
-        if (report.getReporter() != null) {
-            User r = report.getReporter();
-            reporterName = r.getFullName();
-            reporterInfo = ReportManagementDto.UserInfo.builder()
-                    .id(r.getId())
-                    .fullName(r.getFullName())
-                    .phoneNumber(r.getPhoneNumber())
-                    .profilePictureUrl(r.getProfilePictureUrl())
-                    .build();
+        try {
+            if (report.getReporter() != null) {
+                User r = report.getReporter();
+                if (r.getFullName() != null) {
+                    reporterName = r.getFullName();
+                }
+                reporterInfo = ReportManagementDto.UserInfo.builder()
+                        .id(r.getId())
+                        .fullName(r.getFullName())
+                        .phoneNumber(r.getPhoneNumber())
+                        .profilePictureUrl(r.getProfilePictureUrl())
+                        .build();
+            }
+        } catch (Exception e) {
+            log.warn("Warning: Could not load reporter info for Report ID {}. User might be deleted.", report.getId());
         }
 
         ReportManagementDto.UserInfo reportedUserInfo = null;
-        if (report.getReportedUser() != null) {
-            User ru = report.getReportedUser();
-            reportedUserInfo = ReportManagementDto.UserInfo.builder()
-                    .id(ru.getId())
-                    .fullName(ru.getFullName())
-                    .phoneNumber(ru.getPhoneNumber())
-                    .profilePictureUrl(ru.getProfilePictureUrl())
-                    .build();
+        try {
+            if (report.getReportedUser() != null) {
+                User ru = report.getReportedUser();
+                reportedUserInfo = ReportManagementDto.UserInfo.builder()
+                        .id(ru.getId())
+                        .fullName(ru.getFullName())
+                        .phoneNumber(ru.getPhoneNumber())
+                        .profilePictureUrl(ru.getProfilePictureUrl())
+                        .build();
+            }
+        } catch (Exception e) {
+            log.warn("Warning: Could not load reported user info for Report ID {}. User might be deleted.", report.getId());
         }
 
         return ReportManagementDto.builder()

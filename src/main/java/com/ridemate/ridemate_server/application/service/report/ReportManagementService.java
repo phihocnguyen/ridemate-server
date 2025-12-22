@@ -21,7 +21,6 @@ public interface ReportManagementService {
 
     List<ReportManagementDto> getPendingReports();
 
-    // Dùng tên khác với ReportService để tránh xung đột
     ReportManagementDto getAdminReportDetail(Long id);
 
     ReportManagementDto processReport(Long id, String adminNotes);
