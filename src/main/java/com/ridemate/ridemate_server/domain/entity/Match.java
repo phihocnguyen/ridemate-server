@@ -37,6 +37,12 @@ public class Match extends BaseEntity {
     private Double destinationLatitude;
     private Double destinationLongitude;
 
+    // Distance in meters
+    private Double distance;
+
+    // Duration in minutes (calculated when ride is completed)
+    private Integer duration;
+
     // Coin cost calculated based on distance (km)
     // Formula: distance * COIN_PER_KM
     private Integer coin;

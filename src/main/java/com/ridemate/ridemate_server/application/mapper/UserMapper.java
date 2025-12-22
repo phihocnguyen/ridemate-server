@@ -10,5 +10,6 @@ public interface UserMapper {
 
     @Mapping(target = "userType", source = "userType")
     @Mapping(target = "authProvider", source = "authProvider")
+    @Mapping(target = "totalRides", source = "totalRidesCompleted")
     UserDto toUserDto(User user);
 }

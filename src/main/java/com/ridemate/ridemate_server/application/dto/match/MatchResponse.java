@@ -42,6 +42,12 @@ public class MatchResponse {
     @Schema(description = "Destination location longitude", example = "106.6297")
     private Double destinationLongitude;
     
+    @Schema(description = "Distance in meters", example = "5000")
+    private Double distance;
+    
+    @Schema(description = "Duration in minutes", example = "15")
+    private Integer duration;
+    
     @Schema(description = "Coin cost calculated based on distance", example = "25")
     private Integer coin;
     
