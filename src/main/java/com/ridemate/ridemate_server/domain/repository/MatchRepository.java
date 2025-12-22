@@ -16,6 +16,7 @@ import java.util.List;
 public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecificationExecutor<Match> {
     List<Match> findByPassengerId(Long passengerId);
     List<Match> findByDriverId(Long driverId);
+    List<Match> findByDriverIdAndStatus(Long driverId, Match.MatchStatus status);
     List<Match> findByStatus(Match.MatchStatus status);
     Page<Match> findByStatus(Match.MatchStatus status, Pageable pageable);
     long countByStatus(Match.MatchStatus status);

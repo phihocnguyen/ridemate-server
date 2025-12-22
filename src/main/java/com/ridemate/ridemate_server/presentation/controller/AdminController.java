@@ -2,6 +2,7 @@ package com.ridemate.ridemate_server.presentation.controller;
 
 import com.ridemate.ridemate_server.application.service.admin.AdminService;
 import com.ridemate.ridemate_server.application.service.mission.MissionService;
+import com.ridemate.ridemate_server.application.service.user.impl.UserSyncService;
 import com.ridemate.ridemate_server.domain.entity.Match.MatchStatus;
 import com.ridemate.ridemate_server.domain.entity.Mission;
 import com.ridemate.ridemate_server.presentation.dto.admin.*;
@@ -36,6 +37,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final MissionService missionService;
+    private final UserSyncService userSyncService;
 
     @GetMapping("/dashboard/stats")
     @PreAuthorize("hasRole('ADMIN')")
@@ -187,5 +189,21 @@ public class AdminController {
     public ResponseEntity<Map<String, Long>> getMissionStats() {
         Long activeMissions = missionService.getActiveMissionCount();
         return ResponseEntity.ok(Map.of("activeMissions", activeMissions));
+    }
+
+    @PostMapping("/users/{userId}/sync-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sync user ride statistics", description = "Sync totalRidesCompleted with actual COMPLETED matches")
+    public ResponseEntity<Map<String, String>> syncUserStats(@PathVariable Long userId) {
+        userSyncService.syncUserRideStats(userId);
+        return ResponseEntity.ok(Map.of("message", "User stats synced successfully"));
+    }
+
+    @PostMapping("/users/sync-all-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sync all users' ride statistics", description = "Sync totalRidesCompleted for all users (use with caution)")
+    public ResponseEntity<Map<String, String>> syncAllUsersStats() {
+        userSyncService.syncAllUsersRideStats();
+        return ResponseEntity.ok(Map.of("message", "All users' stats synced successfully"));
     }
 }
