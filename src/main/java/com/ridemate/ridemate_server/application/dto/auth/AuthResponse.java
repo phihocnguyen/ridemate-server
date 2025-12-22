@@ -46,5 +46,6 @@ public class AuthResponse {
         private String userType;
         private Integer coins;
         private Float rating;
+        private String profilePictureUrl;
     }
 }

@@ -7,12 +7,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -30,14 +33,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwt != null && jwtTokenProvider.validateToken(jwt)) {
                 Long userId = jwtTokenProvider.getUserIdFromToken(jwt);
                 String phoneNumber = jwtTokenProvider.getPhoneNumberFromToken(jwt);
+                String userType = jwtTokenProvider.getUserTypeFromToken(jwt);
+
+                // Extract authorities from userType
+                List<SimpleGrantedAuthority> authorities = Collections.emptyList();
+                if (userType != null && !userType.isEmpty()) {
+                    // --- SỬA Ở ĐÂY: BỎ TIỀN TỐ "ROLE_" ---
+                    // Chúng ta dùng userType trực tiếp làm Authority (VD: "ADMIN")
+                    authorities = Collections.singletonList(new SimpleGrantedAuthority(userType));
+                    log.debug("User {} has authorities: {}", userId, authorities);
+                }
 
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userId, null, null);
+                        new UsernamePasswordAuthenticationToken(userId, null, authorities);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 request.setAttribute("userId", userId);
                 request.setAttribute("phoneNumber", phoneNumber);
+                request.setAttribute("userType", userType);
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);

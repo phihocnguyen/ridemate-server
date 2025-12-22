@@ -29,6 +29,19 @@ public class MatchResponse {
     private String pickupAddress;
     private String destinationAddress;
     
+    // Pickup and destination coordinates for map routing
+    @Schema(description = "Pickup location latitude", example = "10.7769")
+    private Double pickupLatitude;
+    
+    @Schema(description = "Pickup location longitude", example = "106.7009")
+    private Double pickupLongitude;
+    
+    @Schema(description = "Destination location latitude", example = "10.8231")
+    private Double destinationLatitude;
+    
+    @Schema(description = "Destination location longitude", example = "106.6297")
+    private Double destinationLongitude;
+    
     @Schema(description = "Coin cost calculated based on distance", example = "25")
     private Integer coin;
     
@@ -43,4 +56,15 @@ public class MatchResponse {
     // ✅ NEW: Optional message for additional info
     @Schema(description = "Additional message (e.g. 'No drivers available')")
     private String message;
+
+    // Fields for broadcast matching
+    private String passengerAvatar;
+    private Double passengerRating;
+    private Integer passengerReviews;
+
+    private String driverAvatar;
+    private Double driverRating;
+    private String vehicleModel;
+    private String licensePlate;
+    private Integer estimatedPrice;
 }

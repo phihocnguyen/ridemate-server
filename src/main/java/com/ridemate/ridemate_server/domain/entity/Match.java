@@ -25,10 +25,10 @@ public class Match extends BaseEntity {
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(500)")
     private String pickupAddress;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(500)")
     private String destinationAddress;
 
     // Coordinates for map routing (Optional but recommended)
@@ -40,6 +40,9 @@ public class Match extends BaseEntity {
     // Coin cost calculated based on distance (km)
     // Formula: distance * COIN_PER_KM
     private Integer coin;
+
+    // Actual fare amount in VND that passenger pays
+    private Integer fare;
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;

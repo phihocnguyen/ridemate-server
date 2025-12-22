@@ -16,10 +16,10 @@ public class FavoriteLocation extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(200)")
     private String name; // 
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(500)")
     private String address;
 
     @Column(nullable = false)

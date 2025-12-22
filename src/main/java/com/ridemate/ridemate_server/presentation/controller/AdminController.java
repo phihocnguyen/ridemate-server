@@ -14,11 +14,19 @@ import com.ridemate.ridemate_server.application.service.admin.AdminTripAnalytics
 import com.ridemate.ridemate_server.application.service.admin.AdminTripDetailService;
 import com.ridemate.ridemate_server.application.service.admin.AdminVoucherAndMembershipService;
 import com.ridemate.ridemate_server.application.service.admin.AdminService;
-import com.ridemate.ridemate_server.presentation.dto.admin.AdminChartDataDto;
-import com.ridemate.ridemate_server.presentation.dto.admin.AdminDashboardStatsDto;
+import com.ridemate.ridemate_server.application.service.mission.MissionService;
+import com.ridemate.ridemate_server.domain.entity.Match.MatchStatus;
+import com.ridemate.ridemate_server.domain.entity.Mission;
+import com.ridemate.ridemate_server.presentation.dto.admin.*;
+import com.ridemate.ridemate_server.presentation.dto.mission.CreateMissionRequest;
+import com.ridemate.ridemate_server.presentation.dto.mission.MissionDto;
+import com.ridemate.ridemate_server.presentation.dto.mission.UpdateMissionRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -27,14 +35,26 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/admin")
 @Tag(name = "Admin Management", description = "Admin management endpoints")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "Bearer Authentication")
 public class AdminController {
 
     private final AdminService adminService;
@@ -44,14 +64,21 @@ public class AdminController {
     private final AdminRealTimeMonitoringService realTimeMonitoringService;
     private final AdminTripDetailService tripDetailService;
     private final AdminVoucherAndMembershipService voucherAndMembershipService;
+    private final MissionService missionService;
 
     @GetMapping("/dashboard/stats")
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa: dùng hasAuthority
+    @Operation(summary = "Get dashboard statistics", description = "Get overall statistics for admin dashboard")
     public ResponseEntity<AdminDashboardStatsDto> getDashboardStats() {
         return ResponseEntity.ok(adminService.getDashboardStats());
     }
 
     @GetMapping("/dashboard/charts")
-    public ResponseEntity<AdminChartDataDto> getChartData(@RequestParam(defaultValue = "users") String type) {
+    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
+    @Operation(summary = "Get chart data", description = "Get chart data for various metrics (users, sessions, messages, vouchers, revenue)")
+    public ResponseEntity<AdminChartDataDto> getChartData(
+            @Parameter(description = "Chart type: users, sessions, messages, vouchers, revenue")
+            @RequestParam(defaultValue = "users") String type) {
         return ResponseEntity.ok(adminService.getChartData(type));
     }
 

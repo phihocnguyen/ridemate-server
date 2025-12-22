@@ -9,6 +9,7 @@ import com.ridemate.ridemate_server.domain.entity.OTP;
 import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.domain.repository.OTPRepository;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,6 +44,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private OtpNotificationService otpNotificationService;
+
+    @Autowired
+    private com.ridemate.ridemate_server.application.service.driver.DriverLocationService driverLocationService;
 
     @Value("${STREAM_API_KEY}")
     private String streamApiKey;
@@ -98,8 +102,8 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         log.info("User registered successfully: {}", user.getPhoneNumber());
 
@@ -133,8 +137,8 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         return buildAuthResponse(user, accessToken, refreshToken);
     }
@@ -171,8 +175,17 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        if (user.getUserType() == User.UserType.DRIVER && user.getDriverStatus() == User.DriverStatus.ONLINE) {
+            try {
+                driverLocationService.setDriverOnlineStatus(user.getId(), "ONLINE");
+                log.info("Driver {} location synced to Supabase on login", user.getId());
+            } catch (Exception e) {
+                log.warn("Failed to sync driver location to Supabase on login: {}", e.getMessage());
+            }
+        }
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         return buildAuthResponse(user, accessToken, refreshToken);
     }
@@ -194,8 +207,8 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber());
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber());
+        String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getPhoneNumber(), user.getUserType().toString());
 
         return buildAuthResponse(user, newAccessToken, newRefreshToken);
     }
@@ -316,9 +329,11 @@ public class AuthServiceImpl implements AuthService {
             }
 
             String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), 
-                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail());
+                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail(), 
+                    user.getUserType().toString());
             String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), 
-                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail());
+                    user.getPhoneNumber() != null ? user.getPhoneNumber() : user.getEmail(), 
+                    user.getUserType().toString());
 
             return buildAuthResponse(user, accessToken, refreshToken);
 
@@ -360,6 +375,7 @@ public class AuthServiceImpl implements AuthService {
                 .userType(user.getUserType().toString())
                 .coins(user.getCoins())
                 .rating(user.getRating())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .build();
 
         return AuthResponse.builder()
@@ -371,5 +387,26 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(expiresIn)
                 .user(userDto)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void logout(HttpServletRequest request) {
+        Object userIdAttr = request != null ? request.getAttribute("userId") : null;
+        if (!(userIdAttr instanceof Long userId)) {
+            log.info("Logout called without authenticated user (no userId attribute).");
+            return;
+        }
+
+        userRepository.findById(userId).ifPresent(user -> {
+            if (user.getUserType() == User.UserType.DRIVER) {
+                user.setDriverStatus(User.DriverStatus.OFFLINE);
+                user.setLastLocationUpdate(LocalDateTime.now());
+                userRepository.save(user);
+                log.info("Driver {} set to OFFLINE on logout.", userId);
+            } else {
+                log.info("User {} logged out.", userId);
+            }
+        });
     }
 }

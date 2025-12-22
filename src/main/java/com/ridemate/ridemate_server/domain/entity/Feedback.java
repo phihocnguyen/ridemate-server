@@ -27,6 +27,6 @@ public class Feedback extends BaseEntity {
     @Column(nullable = false)
     private Integer rating; 
 
-    @Column(length = 500)
+    @Column(length = 500, columnDefinition = "VARCHAR(500)")
     private String comment;
 }

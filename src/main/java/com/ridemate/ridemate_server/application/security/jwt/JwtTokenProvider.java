@@ -28,15 +28,17 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
-    public String generateAccessToken(Long userId, String phoneNumber) {
+    public String generateAccessToken(Long userId, String phoneNumber, String userType) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "access");
+        claims.put("userType", userType);
         return buildToken(claims, userId, phoneNumber, jwtExpirationMs);
     }
 
-    public String generateRefreshToken(Long userId, String phoneNumber) {
+    public String generateRefreshToken(Long userId, String phoneNumber, String userType) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
+        claims.put("userType", userType);
         return buildToken(claims, userId, phoneNumber, refreshTokenExpirationMs);
     }
 
@@ -94,6 +96,20 @@ public class JwtTokenProvider {
                     .get("type", String.class);
         } catch (JwtException e) {
             log.error("Error extracting token type: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public String getUserTypeFromToken(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("userType", String.class);
+        } catch (JwtException e) {
+            log.error("Error extracting user type from token: {}", e.getMessage());
             return null;
         }
     }

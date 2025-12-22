@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @RestController
 @RequestMapping("/upload")
+@CrossOrigin(origins = "*")
 @Tag(name = "Upload", description = "File upload endpoints")
 public class UploadController {
 

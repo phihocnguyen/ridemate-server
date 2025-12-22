@@ -16,15 +16,16 @@ import java.util.List;
 /**
  * Service for pushing match notifications to Supabase Realtime Database
  * Drivers will subscribe to realtime changes via Supabase client
+ * Temporarily disabled
  */
 @Slf4j
 @Service
 public class SupabaseNotificationService {
 
-    @Autowired
+    @Autowired(required = false)
     private WebClient supabaseWebClient;
     
-    @Autowired
+    @Autowired(required = false)
     private SupabaseConfig supabaseConfig;
     
     private static final String NOTIFICATIONS_TABLE = "/rest/v1/driver_notifications";
@@ -35,6 +36,9 @@ public class SupabaseNotificationService {
      * Drivers subscribe to realtime changes on `driver_notifications` table
      */
     public void notifyDriversOfNewMatch(Match match, List<DriverCandidate> candidates) {
+        log.warn("Supabase notifications are temporarily disabled");
+        return;
+        /*
         if (candidates == null || candidates.isEmpty()) {
             log.warn("No driver candidates to notify for match {}", match.getId());
             return;
@@ -47,6 +51,7 @@ public class SupabaseNotificationService {
             DriverCandidate candidate = candidates.get(i);
             pushNotificationToSupabase(match, candidate, i + 1);
         }
+        */
     }
 
     /**
