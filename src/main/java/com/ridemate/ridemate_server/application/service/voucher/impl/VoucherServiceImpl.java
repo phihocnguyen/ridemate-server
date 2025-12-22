@@ -50,14 +50,6 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
-    public List<VoucherDto> getAllVouchersForAdmin(Boolean isActive) {
-        return voucherRepository.findAll().stream()
-                .filter(v -> isActive == null || v.getIsActive() == isActive)
-                .map(this::mapToVoucherDto)
-                .collect(Collectors.toList());
-    }
-
-    @Override
     @Transactional
     public UserVoucherDto redeemVoucher(Long userId, Long voucherId) {
         User user = userRepository.findById(userId)
