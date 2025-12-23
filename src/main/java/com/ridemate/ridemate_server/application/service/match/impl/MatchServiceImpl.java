@@ -363,6 +363,15 @@ public class MatchServiceImpl implements MatchService {
             log.warn("⚠️ Driver {} has no current location in database", driverId);
         }
         
+        // ===== SEND NOTIFICATION TO PASSENGER =====
+        try {
+            String title = "Ride Accepted!";
+            String body = "Driver " + driver.getFullName() + " has accepted your request and is on the way.";
+            notificationService.sendNotification(match.getPassenger(), title, body, "MATCH_ACCEPTED", match.getId());
+        } catch (Exception e) {
+            log.error("Failed to send MATCH_ACCEPTED notification: {}", e.getMessage());
+        }
+
         return response;
     }
 
@@ -392,6 +401,58 @@ public class MatchServiceImpl implements MatchService {
 
         match.setStatus(newStatus);
         match = matchRepository.save(match);
+
+        // ===== SEND REAL-TIME NOTIFICATIONS =====
+        try {
+            switch (newStatus) {
+                case WAITING: // Driver arrived (custom mapping if needed, or if updated from ARRIVED)
+                     // If you have a specific ARRIVED status, use that. Assuming WAITING is not meaning arrived here.
+                     // Based on context, let's look for valid statuses.
+                     // If logic requires specific status for 'Arrived', ensure it exists. 
+                     // For now, I will add notifications for COMPLETED and CANCELLED as they are standard.
+                     break;
+                     
+                case IN_PROGRESS: // Trip Started
+                    notificationService.sendNotification(
+                        match.getPassenger(), 
+                        "Trip Started", 
+                        "Your ride to " + match.getDestinationAddress() + " has started.", 
+                        "TRIP_STARTED", 
+                        match.getId()
+                    );
+                    break;
+
+                case COMPLETED:
+                    notificationService.sendNotification(
+                        match.getPassenger(), 
+                        "Ride Completed", 
+                        "You have arrived at your destination. total: " + match.getFare() + " coins.", 
+                        "RIDE_COMPLETED", 
+                        match.getId()
+                    );
+                    break;
+
+                case CANCELLED:
+                    User targetUser = isPassenger ? match.getDriver() : match.getPassenger();
+                    if (targetUser != null) {
+                        notificationService.sendNotification(
+                            targetUser, 
+                            "Ride Cancelled", 
+                            "The ride has been cancelled by " + (isPassenger ? "passenger" : "driver") + ".", 
+                            "MATCH_CANCELLED", 
+                            match.getId()
+                        );
+                    }
+                    break;
+            }
+            
+            // Special case for 'ARRIVED' if it exists in Enum or is mapped from somewhere else.
+            // If the request passes a status that isn't in the entity but is logical, we might need to handle it.
+            // However, assuming `MatchStatus` matches the Entity definition.
+            
+        } catch (Exception e) {
+            log.error("Failed to send status update notification: {}", e.getMessage());
+        }
 
         // ===== UPDATE DRIVER METRICS WHEN COMPLETED =====
         if (newStatus == Match.MatchStatus.COMPLETED && match.getDriver() != null) {
@@ -451,6 +512,24 @@ public class MatchServiceImpl implements MatchService {
 
         match.setStatus(Match.MatchStatus.CANCELLED);
         match = matchRepository.save(match);
+
+        match = matchRepository.save(match);
+
+        // ===== SEND NOTIFICATION =====
+        try {
+            User targetUser = isPassenger ? match.getDriver() : match.getPassenger();
+            if (targetUser != null) {
+                notificationService.sendNotification(
+                    targetUser, 
+                    "Ride Cancelled", 
+                    "The ride has been cancelled by " + (isPassenger ? "the passenger" : "the driver") + ".", 
+                    "MATCH_CANCELLED", 
+                    match.getId()
+                );
+            }
+        } catch (Exception e) {
+            log.error("Failed to send MATCH_CANCELLED notification: {}", e.getMessage());
+        }
 
         // Kết thúc session ngay lập tức
         try {
