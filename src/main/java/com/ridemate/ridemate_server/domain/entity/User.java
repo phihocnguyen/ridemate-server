@@ -34,6 +34,13 @@ public class User extends BaseEntity {
         APPROVED,  // Approved to be a driver
         REJECTED   // Application rejected
     }
+    
+    public enum VerificationStatus {
+        UNVERIFIED,  // Not yet verified
+        PENDING,     // Verification in progress
+        VERIFIED,    // Successfully verified
+        REJECTED     // Verification failed
+    }
 
     // ===== BASIC FIELDS =====
 
@@ -55,6 +62,30 @@ public class User extends BaseEntity {
 
     @Column(nullable = true, length = 500, columnDefinition = "VARCHAR(500)")
     private String faceIdData;
+    
+    // ===== ID VERIFICATION FIELDS =====
+    
+    @Column(nullable = true, columnDefinition = "TEXT")
+    private String idCardImageUrl;
+    
+    // ID card face embedding - embedding từ ảnh CCCD
+    @Column(nullable = true, columnDefinition = "vector(512)")
+    private String idCardFaceEmbedding; // Embedding từ ảnh căn cước
+    
+    // Selfie face embedding - embedding từ ảnh selfie (liveness check)
+    @Column(nullable = true, columnDefinition = "vector(512)")
+    private String faceEmbedding; // Embedding từ ảnh selfie để so khớp
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private VerificationStatus verificationStatus = VerificationStatus.UNVERIFIED;
+    
+    @Column(nullable = true)
+    private java.time.LocalDateTime verificationDate;
+    
+    @Column(nullable = true, columnDefinition = "FLOAT")
+    private Float verificationSimilarityScore;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
