@@ -1,11 +1,10 @@
 package com.ridemate.ridemate_server.presentation.dto.admin;
 
-import com.ridemate.ridemate_server.domain.entity.Match.MatchStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import com.ridemate.ridemate_server.domain.entity.Match.MatchStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,10 +20,13 @@ public class TripManagementDto {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private MatchStatus status;
-    private LocalDateTime createdAt;
-    private Integer totalPassengers;
-    private List<PassengerInfo> passengers;
     
+    private Double fare;
+    private LocalDateTime createdAt;
+    
+    private Integer matchedRidersCount; 
+    private List<PassengerInfo> passengers;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -37,7 +39,18 @@ public class TripManagementDto {
         private String profilePictureUrl;
         private VehicleInfo vehicle;
     }
-    
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class VehicleInfo {
+        private Long id;
+        private String vehicleType;
+        private String licensePlate;
+        private String model;
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -48,16 +61,5 @@ public class TripManagementDto {
         private String phoneNumber;
         private Double rating;
         private String profilePictureUrl;
-    }
-    
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class VehicleInfo {
-        private Long id;
-        private String vehicleType;
-        private String licensePlate;
-        private String model;
     }
 }

@@ -47,7 +47,7 @@ public class AdminServiceImpl implements AdminService {
                 .totalVehicles(vehicleRepository.count())
                 .totalCompletedTrips(matchRepository.countByStatus(com.ridemate.ridemate_server.domain.entity.Match.MatchStatus.COMPLETED))
                 .totalCancelledTrips(matchRepository.countByStatus(com.ridemate.ridemate_server.domain.entity.Match.MatchStatus.CANCELLED))
-                .totalReports(feedbackRepository.count())
+                .totalReports(reportRepository.count()) // Đếm từ bảng Report
                 .build();
     }
 
@@ -163,7 +163,6 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<ActiveTripDto> getActiveTrips() {
-        // Get all sessions that are active (IN_PROGRESS matches)
         List<Session> activeSessions = sessionRepository.findByIsActiveTrue();
         
         return activeSessions.stream()
@@ -187,7 +186,7 @@ public class AdminServiceImpl implements AdminService {
                             .endLocation(match.getDestinationAddress())
                             .startTime(session.getStartTime())
                             .status(match.getStatus().name())
-                            .totalRiders(1) // Can be enhanced to count actual riders
+                            .totalRiders(1)
                             .seatsAvailable(match.getVehicle() != null ? match.getVehicle().getCapacity() - 1 : 0)
                             .currentLatitude(driver != null ? driver.getCurrentLatitude() : null)
                             .currentLongitude(driver != null ? driver.getCurrentLongitude() : null)
@@ -198,11 +197,9 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<TopUserDto> getTopUsers(int limit) {
-        // Get top users by coins (points)
         List<User> topUsers = userRepository.findAll().stream()
                 .filter(user -> user.getUserType() != User.UserType.ADMIN)
                 .sorted((u1, u2) -> {
-                    // Sort by coins first, then by rating
                     int coinsCompare = Integer.compare(u2.getCoins(), u1.getCoins());
                     if (coinsCompare != 0) return coinsCompare;
                     return Float.compare(u2.getRating(), u1.getRating());
@@ -212,7 +209,6 @@ public class AdminServiceImpl implements AdminService {
 
         return topUsers.stream()
                 .map(user -> {
-                    // Count total trips for this user
                     long totalTrips = matchRepository.findAll().stream()
                             .filter(match -> 
                                 (match.getDriver() != null && match.getDriver().getId().equals(user.getId())) ||
@@ -220,7 +216,6 @@ public class AdminServiceImpl implements AdminService {
                             )
                             .count();
 
-                    // Determine membership tier based on coins
                     String tier = getMembershipTier(user.getCoins());
 
                     return TopUserDto.builder()
@@ -246,7 +241,6 @@ public class AdminServiceImpl implements AdminService {
 
         long totalMembers = allUsers.size();
 
-        // Count users by tier
         Map<String, Long> tierDistribution = new HashMap<>();
         tierDistribution.put("Bronze", 0L);
         tierDistribution.put("Silver", 0L);
@@ -258,7 +252,6 @@ public class AdminServiceImpl implements AdminService {
             tierDistribution.put(tier, tierDistribution.get(tier) + 1);
         });
 
-        // Calculate percentages
         Map<String, Double> tierPercentages = new HashMap<>();
         tierDistribution.forEach((tier, count) -> {
             double percentage = totalMembers > 0 ? (count * 100.0 / totalMembers) : 0.0;
@@ -277,33 +270,28 @@ public class AdminServiceImpl implements AdminService {
         List<com.ridemate.ridemate_server.domain.entity.UserVoucher> allRedemptions = 
                 userVoucherRepository.findAll();
 
-        // Calculate total revenue
         long totalRevenue = allRedemptions.stream()
                 .mapToLong(uv -> uv.getVoucher().getCost())
                 .sum();
 
-        // Calculate daily revenue (today)
         LocalDate today = LocalDate.now();
         long dailyRevenue = allRedemptions.stream()
                 .filter(uv -> uv.getCreatedAt().toLocalDate().equals(today))
                 .mapToLong(uv -> uv.getVoucher().getCost())
                 .sum();
 
-        // Calculate weekly revenue (last 7 days)
         LocalDate weekAgo = today.minusDays(7);
         long weeklyRevenue = allRedemptions.stream()
                 .filter(uv -> uv.getCreatedAt().toLocalDate().isAfter(weekAgo))
                 .mapToLong(uv -> uv.getVoucher().getCost())
                 .sum();
 
-        // Calculate monthly revenue (current month)
         LocalDate monthStart = today.withDayOfMonth(1);
         long monthlyRevenue = allRedemptions.stream()
                 .filter(uv -> uv.getCreatedAt().toLocalDate().isAfter(monthStart.minusDays(1)))
                 .mapToLong(uv -> uv.getVoucher().getCost())
                 .sum();
 
-        // Revenue by date (last 30 days)
         Map<String, Long> revenueByDate = allRedemptions.stream()
                 .filter(uv -> uv.getCreatedAt().toLocalDate().isAfter(today.minusDays(30)))
                 .collect(Collectors.groupingBy(
@@ -312,7 +300,6 @@ public class AdminServiceImpl implements AdminService {
                         Collectors.summingLong(uv -> uv.getVoucher().getCost())
                 ));
 
-        // Top vouchers by redemption count
         Map<String, Long> topVouchers = allRedemptions.stream()
                 .collect(Collectors.groupingBy(
                         uv -> uv.getVoucher().getVoucherCode(),
@@ -351,7 +338,6 @@ public class AdminServiceImpl implements AdminService {
             String searchTerm,
             org.springframework.data.domain.Pageable pageable) {
         
-        // Use Specification pattern for dynamic filtering and search
         org.springframework.data.jpa.domain.Specification<Match> spec = 
             com.ridemate.ridemate_server.domain.repository.MatchSpecification.searchTrips(status, searchTerm);
         
@@ -370,12 +356,9 @@ public class AdminServiceImpl implements AdminService {
     private TripManagementDto convertToTripManagementDto(Match match) {
         User driver = match.getDriver();
         User passenger = match.getPassenger();
-        Session session = match.getSession();
-        
-        // Build driver info
+
         TripManagementDto.DriverInfo driverInfo = null;
         if (driver != null) {
-            // Get driver's vehicle
             var vehicle = vehicleRepository.findByDriverIdAndStatus(
                     driver.getId(),
                     com.ridemate.ridemate_server.domain.entity.Vehicle.VehicleStatus.APPROVED
@@ -401,7 +384,6 @@ public class AdminServiceImpl implements AdminService {
                     .build();
         }
         
-        // Build passenger list
         List<TripManagementDto.PassengerInfo> passengers = new ArrayList<>();
         if (passenger != null) {
             passengers.add(TripManagementDto.PassengerInfo.builder()
@@ -413,25 +395,24 @@ public class AdminServiceImpl implements AdminService {
                     .build());
         }
         
-        // Extract locations from session or use placeholders
-        String startLocation = "Unknown";
-        String endLocation = "Unknown";
-        if (session != null) {
-            // Session has location info but field names may vary
-            startLocation = session.toString(); // Simplified - adjust based on actual fields
-            endLocation = session.toString();
-        }
-        
+        String startLocation = match.getPickupAddress(); 
+        String endLocation = match.getDestinationAddress();
+        if (startLocation == null) startLocation = "Điểm đón chưa xác định";
+        if (endLocation == null) endLocation = "Điểm đến chưa xác định";
+
+        LocalDateTime displayTime = match.getStartTime() != null ? match.getStartTime() : match.getCreatedAt();
+
         return TripManagementDto.builder()
                 .id(match.getId())
                 .driver(driverInfo)
                 .startLocation(startLocation)
                 .endLocation(endLocation)
-                .startTime(session != null ? session.getStartTime() : null)
-                .endTime(session != null ? session.getEndTime() : null)
+                .startTime(displayTime)
+                .endTime(match.getEndTime())
                 .status(match.getStatus())
+                .fare(match.getFare() != null ? match.getFare().doubleValue() : 0.0) 
                 .createdAt(match.getCreatedAt())
-                .totalPassengers(passengers.size())
+                .matchedRidersCount(passengers.size()) 
                 .passengers(passengers)
                 .build();
     }
