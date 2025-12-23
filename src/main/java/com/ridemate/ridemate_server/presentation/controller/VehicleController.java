@@ -88,17 +88,16 @@ public class VehicleController {
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "Vehicle found",
+                    description = "Vehicle found or no vehicle found",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = VehicleResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "No vehicle found for this driver"
             )
     })
     public ResponseEntity<ApiResponse<VehicleResponse>> getMyVehicle(Authentication authentication) {
         Long driverId = getUserIdFromAuthentication(authentication);
         VehicleResponse response = vehicleService.getMyVehicle(driverId);
+        if (response == null) {
+            return ResponseEntity.ok(ApiResponse.success("No vehicle found for this driver", null));
+        }
         return ResponseEntity.ok(ApiResponse.success("Vehicle retrieved successfully", response));
     }
 

@@ -1,7 +1,21 @@
 package com.ridemate.ridemate_server.presentation.controller;
 
+import com.ridemate.ridemate_server.application.dto.admin.ActiveTripResponse;
+import com.ridemate.ridemate_server.application.dto.admin.DashboardStatsResponse;
+import com.ridemate.ridemate_server.application.dto.admin.DriverRankingResponse;
+import com.ridemate.ridemate_server.application.dto.admin.TripDetailResponse;
+import com.ridemate.ridemate_server.application.dto.admin.TripVolumeResponse;
+import com.ridemate.ridemate_server.application.dto.admin.VoucherStatsResponse;
+import com.ridemate.ridemate_server.application.dto.admin.MembershipStatsResponse;
+import com.ridemate.ridemate_server.application.service.admin.AdminDashboardService;
+import com.ridemate.ridemate_server.application.service.admin.AdminDriverAnalyticsService;
+import com.ridemate.ridemate_server.application.service.admin.AdminRealTimeMonitoringService;
+import com.ridemate.ridemate_server.application.service.admin.AdminTripAnalyticsService;
+import com.ridemate.ridemate_server.application.service.admin.AdminTripDetailService;
+import com.ridemate.ridemate_server.application.service.admin.AdminVoucherAndMembershipService;
 import com.ridemate.ridemate_server.application.service.admin.AdminService;
 import com.ridemate.ridemate_server.application.service.mission.MissionService;
+import com.ridemate.ridemate_server.application.service.user.impl.UserSyncService;
 import com.ridemate.ridemate_server.domain.entity.Match.MatchStatus;
 import com.ridemate.ridemate_server.domain.entity.Mission;
 import com.ridemate.ridemate_server.presentation.dto.admin.*;
@@ -15,6 +29,13 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,15 +48,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import java.time.LocalDate;
+import java.util.List;
+
 @RestController
 @RequestMapping("/admin")
 @Tag(name = "Admin Management", description = "Admin management endpoints")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminDashboardService adminDashboardService;
+    private final AdminDriverAnalyticsService driverAnalyticsService;
+    private final AdminTripAnalyticsService tripAnalyticsService;
+    private final AdminRealTimeMonitoringService realTimeMonitoringService;
+    private final AdminTripDetailService tripDetailService;
+    private final AdminVoucherAndMembershipService voucherAndMembershipService;
     private final MissionService missionService;
+    private final UserSyncService userSyncService;
 
     @GetMapping("/dashboard/stats")
     @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa: dùng hasAuthority
@@ -53,137 +84,78 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getChartData(type));
     }
 
-    @GetMapping("/dashboard/stats/trips")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get trip statistics", description = "Get detailed statistics about trips (pending, matched, in-progress, completed, cancelled)")
-    public ResponseEntity<TripStatsDto> getTripStats() {
-        return ResponseEntity.ok(adminService.getTripStats());
+    @GetMapping("/dashboard/comprehensive")
+    @Operation(summary = "Get comprehensive dashboard statistics")
+    public ResponseEntity<DashboardStatsResponse> getComprehensiveDashboard() {
+        return ResponseEntity.ok(adminDashboardService.getComprehensiveDashboardStats());
     }
 
-    @GetMapping("/dashboard/active-trips")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get active trips", description = "Get list of currently active trips (matched or in-progress)")
-    public ResponseEntity<List<ActiveTripDto>> getActiveTrips() {
-        return ResponseEntity.ok(adminService.getActiveTrips());
+    @GetMapping("/drivers/rankings")
+    @Operation(summary = "Get top drivers by coins earned")
+    public ResponseEntity<List<DriverRankingResponse>> getTopDrivers(
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(driverAnalyticsService.getTopDrivers(limit));
     }
 
-    @GetMapping("/dashboard/top-users")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get top users", description = "Get top users by coins/points and rating")
-    public ResponseEntity<List<TopUserDto>> getTopUsers(
-            @Parameter(description = "Number of top users to return")
-            @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(adminService.getTopUsers(limit));
+    @GetMapping("/trips/volume")
+    @Operation(summary = "Get trip volume by date range")
+    public ResponseEntity<List<TripVolumeResponse>> getTripVolume(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return ResponseEntity.ok(tripAnalyticsService.getTripVolumeByDateRange(startDate, endDate));
     }
 
-    @GetMapping("/dashboard/stats/membership")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get membership statistics", description = "Get membership tier distribution and percentages")
-    public ResponseEntity<MembershipStatsDto> getMembershipStats() {
-        return ResponseEntity.ok(adminService.getMembershipStats());
+    @GetMapping("/trips/active")
+    @Operation(summary = "Get all active trips")
+    public ResponseEntity<List<ActiveTripResponse>> getActiveTrips() {
+        return ResponseEntity.ok(realTimeMonitoringService.getActiveTrips());
     }
 
-    @GetMapping("/dashboard/stats/revenue")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get revenue statistics", description = "Get revenue statistics (daily, weekly, monthly, by date, top vouchers)")
-    public ResponseEntity<RevenueStatsDto> getRevenueStats() {
-        return ResponseEntity.ok(adminService.getRevenueStats());
+    @GetMapping("/trips/{tripId}")
+    @Operation(summary = "Get trip detail by ID")
+    public ResponseEntity<TripDetailResponse> getTripDetail(@PathVariable Long tripId) {
+        return ResponseEntity.ok(tripDetailService.getTripDetail(tripId));
     }
-    
-    // Trip Management endpoints
-    @GetMapping("/trips")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get all trips", description = "Get paginated list of trips with optional status filter")
-    public ResponseEntity<Page<TripManagementDto>> getAllTrips(
-            @Parameter(description = "Filter by status: PENDING, WAITING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED")
-            @RequestParam(required = false) com.ridemate.ridemate_server.domain.entity.Match.MatchStatus status,
-            @Parameter(description = "Search term for driver/passenger name or phone")
-            @RequestParam(required = false) String search,
-            @Parameter(description = "Page number (0-indexed)")
-            @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size")
-            @RequestParam(defaultValue = "20") int size,
-            @Parameter(description = "Sort by field (e.g., 'createdAt', 'id')")
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @Parameter(description = "Sort direction: ASC or DESC")
-            @RequestParam(defaultValue = "DESC") String sortDirection) {
-        
-        Pageable pageable = PageRequest.of(
-                page,
-                size,
-                Sort.Direction.fromString(sortDirection),
-                sortBy
-        );
-        
-        return ResponseEntity.ok(adminService.getAllTrips(status, search, pageable));
+
+    @GetMapping("/trips/status/completed")
+    @Operation(summary = "Get all completed trips with details")
+    public ResponseEntity<List<TripDetailResponse>> getCompletedTrips() {
+        return ResponseEntity.ok(tripDetailService.getCompletedTripsDetailed());
     }
-    
-    @GetMapping("/trips/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get trip by ID", description = "Get detailed information about a specific trip")
-    public ResponseEntity<TripManagementDto> getTripById(
-            @Parameter(description = "Trip ID")
-            @PathVariable Long id) {
-        return ResponseEntity.ok(adminService.getTripById(id));
+
+    @GetMapping("/trips/status/cancelled")
+    @Operation(summary = "Get all cancelled trips with details")
+    public ResponseEntity<List<TripDetailResponse>> getCancelledTrips() {
+        return ResponseEntity.ok(tripDetailService.getCancelledTripsDetailed());
     }
-        
-    @PostMapping("/missions")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Create new mission", description = "Create a new mission for users")
-    public ResponseEntity<MissionDto> createMission(@Valid @RequestBody CreateMissionRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(missionService.createMission(request));
+
+    @GetMapping("/vouchers/statistics")
+    @Operation(summary = "Get voucher usage statistics")
+    public ResponseEntity<List<VoucherStatsResponse>> getVoucherStats() {
+        return ResponseEntity.ok(voucherAndMembershipService.getVoucherStatistics());
     }
-    
-    @PutMapping("/missions/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Update mission", description = "Update an existing mission")
-    public ResponseEntity<MissionDto> updateMission(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateMissionRequest request) {
-        return ResponseEntity.ok(missionService.updateMission(id, request));
+
+    @GetMapping("/memberships/statistics")
+    @Operation(summary = "Get membership tier statistics")
+    public ResponseEntity<List<MembershipStatsResponse>> getMembershipStats() {
+        return ResponseEntity.ok(voucherAndMembershipService.getMembershipStatistics());
     }
-    
-    @DeleteMapping("/missions/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Delete mission", description = "Delete a mission")
-    public ResponseEntity<Void> deleteMission(@PathVariable Long id) {
-        missionService.deleteMission(id);
-        return ResponseEntity.noContent().build();
+
+    @PostMapping("/users/{userId}/sync-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sync user ride statistics", description = "Sync totalRidesCompleted with actual COMPLETED matches")
+    public ResponseEntity<Map<String, String>> syncUserStats(@PathVariable Long userId) {
+        userSyncService.syncUserRideStats(userId);
+        return ResponseEntity.ok(Map.of("message", "User stats synced successfully"));
     }
-    
-    @GetMapping("/missions")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get all missions", description = "Get all missions with pagination and filtering")
-    public ResponseEntity<Page<MissionDto>> getAllMissions(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection,
-            @RequestParam(required = false) String type) {
-        
-        Pageable pageable = PageRequest.of(page, size, 
-                Sort.Direction.fromString(sortDirection), sortBy);
-        
-        if (type != null && !type.isEmpty()) {
-            Mission.MissionType missionType = Mission.MissionType.valueOf(type.toUpperCase());
-            return ResponseEntity.ok(missionService.getMissionsByType(missionType, pageable));
-        }
-        
-        return ResponseEntity.ok(missionService.getAllMissions(pageable));
-    }
-    
-    @GetMapping("/missions/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get mission by ID", description = "Get detailed information about a specific mission")
-    public ResponseEntity<MissionDto> getMissionById(@PathVariable Long id) {
-        return ResponseEntity.ok(missionService.getMissionById(id));
-    }
-    
-    @GetMapping("/missions/stats")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get mission statistics", description = "Get statistics about missions")
-    public ResponseEntity<Map<String, Long>> getMissionStats() {
-        Long activeMissions = missionService.getActiveMissionCount();
-        return ResponseEntity.ok(Map.of("activeMissions", activeMissions));
+
+    @PostMapping("/users/sync-all-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Sync all users' ride statistics", description = "Sync totalRidesCompleted for all users (use with caution)")
+    public ResponseEntity<Map<String, String>> syncAllUsersStats() {
+        userSyncService.syncAllUsersRideStats();
+        return ResponseEntity.ok(Map.of("message", "All users' stats synced successfully"));
     }
 }

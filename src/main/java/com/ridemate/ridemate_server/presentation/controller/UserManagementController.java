@@ -20,14 +20,17 @@ import java.util.List;
 @RequestMapping("/admin/users")
 @Tag(name = "User Management", description = "Admin endpoints for managing users and driver approvals")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class UserManagementController {
 
     private final UserManagementService userManagementService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
-    @Operation(summary = "Get all users with filters")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(
+        summary = "Get all users with filters", 
+        description = "Get paginated list of users with optional filters (userType, isActive, driverApprovalStatus, searchTerm)"
+    )
     public ResponseEntity<ApiResponse<UserManagementPageDto>> getAllUsers(
             @RequestParam(required = false) User.UserType userType,
             @RequestParam(required = false) Boolean isActive,

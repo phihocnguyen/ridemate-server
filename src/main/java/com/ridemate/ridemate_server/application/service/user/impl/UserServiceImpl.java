@@ -91,8 +91,18 @@ public class UserServiceImpl implements UserService {
         if (request.getProfilePictureUrl() != null) {
             user.setProfilePictureUrl(request.getProfilePictureUrl());
         }
-        // Note: dob, address, bankName, bankAccountNumber are not in User entity
-        // They might be in a separate Profile entity or not implemented yet
+        if (request.getDob() != null) {
+            user.setDob(request.getDob());
+        }
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
+        if (request.getBankName() != null) {
+            user.setBankName(request.getBankName());
+        }
+        if (request.getBankAccountNumber() != null) {
+            user.setBankAccountNumber(request.getBankAccountNumber());
+        }
 
         user = userRepository.save(user);
         

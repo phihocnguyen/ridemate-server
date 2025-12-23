@@ -19,14 +19,17 @@ import java.util.List;
 @RequestMapping("/admin/reports") // Đã thêm /api vào đầu
 @Tag(name = "Report Management", description = "Admin endpoints for managing user reports")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "bearerAuth")
 public class ReportManagementController {
 
     private final ReportManagementService reportManagementService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')") 
-    @Operation(summary = "Get all reports with filters")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(
+        summary = "Get all reports with filters",
+        description = "Get paginated list of reports with optional filters (status, category, searchTerm)"
+    )
     public ResponseEntity<ApiResponse<ReportManagementPageDto>> getAllReports(
             @RequestParam(required = false) Report.ReportStatus status,
             @RequestParam(required = false) Report.ReportCategory category,
