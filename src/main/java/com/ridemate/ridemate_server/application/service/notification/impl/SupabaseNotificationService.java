@@ -1,6 +1,5 @@
 package com.ridemate.ridemate_server.application.service.notification.impl;
 
-import com.ridemate.ridemate_server.application.config.SupabaseConfig;
 import com.ridemate.ridemate_server.application.dto.match.DriverCandidate;
 import com.ridemate.ridemate_server.application.dto.notification.MatchNotification;
 import com.ridemate.ridemate_server.domain.entity.Match;
@@ -25,8 +24,7 @@ public class SupabaseNotificationService {
     @Autowired(required = false)
     private WebClient supabaseWebClient;
     
-    @Autowired(required = false)
-    private SupabaseConfig supabaseConfig;
+    // Removed SupabaseConfig dependency
     
     private static final String NOTIFICATIONS_TABLE = "/rest/v1/driver_notifications";
     private static final int TOP_DRIVERS_TO_NOTIFY = 5; // Notify top 5 closest drivers
@@ -82,22 +80,26 @@ public class SupabaseNotificationService {
                 .build();
 
         // Push to Supabase REST API (will trigger realtime event)
-        supabaseWebClient
-                .post()
-                .uri(NOTIFICATIONS_TABLE)
-                .bodyValue(notification)
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnSuccess(response -> {
-                    log.info("✅ Notification pushed to Supabase for Driver {} (Rank #{}): Match {}, Distance: {:.2f}km, Score: {:.3f}",
-                            candidate.getDriverId(), rank, match.getId(),
-                            candidate.getDistanceToPickup(), candidate.getMatchScore());
-                })
-                .doOnError(error -> {
-                    log.error("❌ Failed to push notification to Supabase for Driver {}: {}",
-                            candidate.getDriverId(), error.getMessage());
-                })
-                .onErrorResume(e -> Mono.empty()) // Don't fail the whole process if one notification fails
-                .subscribe();
+        if (supabaseWebClient != null) {
+            supabaseWebClient
+                    .post()
+                    .uri(NOTIFICATIONS_TABLE)
+                    .bodyValue(notification)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .doOnSuccess(response -> {
+                        log.info("✅ Notification pushed to Supabase for Driver {} (Rank #{}): Match {}, Distance: {:.2f}km, Score: {:.3f}",
+                                candidate.getDriverId(), rank, match.getId(),
+                                candidate.getDistanceToPickup(), candidate.getMatchScore());
+                    })
+                    .doOnError(error -> {
+                        log.error("❌ Failed to push notification to Supabase for Driver {}: {}",
+                                candidate.getDriverId(), error.getMessage());
+                    })
+                    .onErrorResume(e -> Mono.empty()) // Don't fail the whole process if one notification fails
+                    .subscribe();
+        } else {
+             log.warn("Supabase WebClient is not initialized. Skipping notification.");
+        }
     }
 }

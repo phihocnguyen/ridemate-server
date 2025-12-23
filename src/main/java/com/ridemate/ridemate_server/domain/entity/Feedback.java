@@ -29,4 +29,7 @@ public class Feedback extends BaseEntity {
 
     @Column(length = 500, columnDefinition = "VARCHAR(500)")
     private String comment;
+
+    @Column(columnDefinition = "TEXT")
+    private String tags; // JSON string or comma-separated tags
 }

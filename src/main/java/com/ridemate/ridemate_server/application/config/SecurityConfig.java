@@ -135,6 +135,17 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**"
                         ).permitAll()
+                        
+                        // Verification endpoints - public for registration flow
+                        .requestMatchers(
+                                "/verification/id-card",
+                                "/verification/liveness",
+                                "/verification/liveness/verify-phase",
+                                "/verification/status/**",
+                                "/verification/id-card-temp",
+                                "/verification/liveness-temp",
+                                "/verification/link-temp"
+                        ).permitAll()
 
                         // Logout requires authentication
                         .requestMatchers("/auth/logout").authenticated()

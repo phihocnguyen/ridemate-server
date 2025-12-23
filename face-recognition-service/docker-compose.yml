@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # Face Recognition Service (Python + TensorFlow FaceNet)
+  face-recognition:
+    image: ridemate-face-recognition:latest
+    container_name: ridemate-face-recognition
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ridemate-network
+
+networks:
+  ridemate-network:
+    driver: bridge
