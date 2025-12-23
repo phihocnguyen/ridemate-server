@@ -15,7 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Slf4j
 @Getter
 @Configuration
-@ConditionalOnProperty(name = "supabase.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "supabase.enabled", havingValue = "true", matchIfMissing = true)
 public class SupabaseConfig {
 
     @Value("${supabase.url:https://disabled}")

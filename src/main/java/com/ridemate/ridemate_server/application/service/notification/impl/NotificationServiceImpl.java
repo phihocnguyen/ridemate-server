@@ -141,7 +141,7 @@ public class NotificationServiceImpl implements NotificationService {
                         match.getCoin());
                 
                 // TODO: Revert to "MATCH_REQUEST" once database constraint is updated
-                sendNotification(driver, title, body, "SYSTEM", match.getId());
+                sendNotification(driver, title, body, "MATCH_REQUEST", match.getId());
             } catch (Exception e) {
                 log.error("Failed to save notification for driver {}: {}", candidate.getDriverId(), e.getMessage());
             }

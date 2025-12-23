@@ -1,8 +1,7 @@
 package com.ridemate.ridemate_server.application.service.driver;
 
-import com.ridemate.ridemate_server.infrastructure.config.SupabaseConfig;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -14,13 +13,13 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SupabaseRealtimeService {
 
-    private final SupabaseConfig supabaseConfig;
+    @Autowired(required = false)
+    private WebClient supabaseWebClient;
 
     public void publishDriverLocation(Long driverId, Double latitude, Double longitude, String driverStatus) {
-        if (supabaseConfig.getWebClient() == null) {
+        if (supabaseWebClient == null) {
             log.debug("Supabase not configured, skipping location publish for driver {}", driverId);
             return;
         }
@@ -36,7 +35,7 @@ public class SupabaseRealtimeService {
             String locationPoint = String.format("POINT(%f %f)", longitude, latitude);
             locationData.put("location", locationPoint);
 
-            supabaseConfig.getWebClient()
+            supabaseWebClient
                     .post()
                     .uri("/driver_locations")
                     .bodyValue(locationData)
@@ -53,7 +52,7 @@ public class SupabaseRealtimeService {
     }
 
     public void updateDriverLocation(Long driverId, Double latitude, Double longitude, String driverStatus) {
-        if (supabaseConfig.getWebClient() == null) {
+        if (supabaseWebClient == null) {
             log.debug("Supabase not configured, skipping location update for driver {}", driverId);
             return;
         }
@@ -70,7 +69,7 @@ public class SupabaseRealtimeService {
             locationData.put("location", locationPoint);
 
             // Use UPSERT (POST with Prefer: resolution=merge-duplicates)
-            supabaseConfig.getWebClient()
+            supabaseWebClient
                     .post()
                     .uri(uriBuilder -> uriBuilder
                             .path("/driver_locations")
@@ -97,13 +96,13 @@ public class SupabaseRealtimeService {
     }
 
     public void removeDriverLocation(Long driverId) {
-        if (supabaseConfig.getWebClient() == null) {
+        if (supabaseWebClient == null) {
             log.debug("Supabase not configured, skipping location removal for driver {}", driverId);
             return;
         }
         
         try {
-            supabaseConfig.getWebClient()
+            supabaseWebClient
                     .delete()
                     .uri(uriBuilder -> uriBuilder
                             .path("/driver_locations")
@@ -122,7 +121,7 @@ public class SupabaseRealtimeService {
     }
 
     public Mono<List<Map<String, Object>>> getNearbyDrivers(Double latitude, Double longitude, Double radiusKm) {
-        if (supabaseConfig.getWebClient() == null) {
+        if (supabaseWebClient == null) {
             log.debug("Supabase not configured, returning empty driver list");
             return Mono.just(List.of());
         }
@@ -132,7 +131,7 @@ public class SupabaseRealtimeService {
             // Ideally we should use an RPC call, but for simplicity we filter by status first
             // and perform client-side filtering if complex query is not supported unless we setup RPC
             
-            return supabaseConfig.getWebClient()
+            return supabaseWebClient
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/driver_locations")
@@ -153,13 +152,13 @@ public class SupabaseRealtimeService {
     }
 
     public void publishMatch(Map<String, Object> matchData) {
-        if (supabaseConfig.getWebClient() == null) {
+        if (supabaseWebClient == null) {
             log.debug("Supabase not configured, skipping match publish");
             return;
         }
 
         try {
-            supabaseConfig.getWebClient()
+            supabaseWebClient
                     .post()
                     .uri("/matches")
                     .bodyValue(matchData)

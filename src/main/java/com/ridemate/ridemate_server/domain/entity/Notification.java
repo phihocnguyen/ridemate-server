@@ -40,6 +40,10 @@ public class Notification extends BaseEntity {
         NEW_MESSAGE,
         RIDE_COMPLETED,
         PROMOTION,
-        SYSTEM
+        SYSTEM,
+        TRIP_STARTED,
+        TRIP_ENDED,
+        DRIVER_ARRIVED,
+        REFUND_PROCESSED
     }
 }
