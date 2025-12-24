@@ -1,14 +1,10 @@
 package com.ridemate.ridemate_server.presentation.controller;
 
-import com.ridemate.ridemate_server.application.dto.report.ReportActionRequest;
-import com.ridemate.ridemate_server.application.dto.report.ReportManagementDto;
-import com.ridemate.ridemate_server.application.dto.report.ReportManagementPageDto;
-import com.ridemate.ridemate_server.application.dto.report.ReportStatisticsDto;
+import com.ridemate.ridemate_server.application.dto.report.*;
 import com.ridemate.ridemate_server.application.service.report.ReportManagementService;
 import com.ridemate.ridemate_server.domain.entity.Report;
 import com.ridemate.ridemate_server.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -20,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/reports")
+@RequestMapping("/admin/reports") // Đã thêm /api vào đầu
 @Tag(name = "Report Management", description = "Admin endpoints for managing user reports")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
@@ -29,81 +25,53 @@ public class ReportManagementController {
     private final ReportManagementService reportManagementService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Get all reports with filters",
         description = "Get paginated list of reports with optional filters (status, category, searchTerm)"
     )
     public ResponseEntity<ApiResponse<ReportManagementPageDto>> getAllReports(
-            @Parameter(description = "Filter by status (PENDING, PROCESSING, RESOLVED, REJECTED)")
             @RequestParam(required = false) Report.ReportStatus status,
-
-            @Parameter(description = "Filter by category (SAFETY, BEHAVIOR, LOST_ITEM, PAYMENT, APP_ISSUE, OTHER)")
             @RequestParam(required = false) Report.ReportCategory category,
-
-            @Parameter(description = "Search by title or description")
             @RequestParam(required = false) String searchTerm,
-
-            @Parameter(description = "Page number (0-indexed)")
             @RequestParam(defaultValue = "0") int page,
-
-            @Parameter(description = "Page size")
             @RequestParam(defaultValue = "10") int size,
-
-            @Parameter(description = "Sort by field")
             @RequestParam(defaultValue = "createdAt") String sortBy,
-
-            @Parameter(description = "Sort direction (ASC or DESC)")
             @RequestParam(defaultValue = "DESC") String sortDirection
     ) {
         ReportManagementPageDto result = reportManagementService.getAllReports(
             status, category, searchTerm, page, size, sortBy, sortDirection
         );
-
         return ResponseEntity.ok(ApiResponse.success("Reports retrieved successfully", result));
     }
 
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Get report statistics",
-        description = "Get overall statistics about reports by status"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Get report statistics")
     public ResponseEntity<ApiResponse<ReportStatisticsDto>> getReportStatistics() {
         ReportStatisticsDto stats = reportManagementService.getReportStatistics();
         return ResponseEntity.ok(ApiResponse.success("Statistics retrieved successfully", stats));
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Get pending reports",
-        description = "Get list of reports waiting for admin action"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Get pending reports")
     public ResponseEntity<ApiResponse<List<ReportManagementDto>>> getPendingReports() {
         List<ReportManagementDto> pendingReports = reportManagementService.getPendingReports();
         return ResponseEntity.ok(ApiResponse.success("Pending reports retrieved successfully", pendingReports));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Get report details",
-        description = "Get detailed information about a specific report"
-    )
-    public ResponseEntity<ApiResponse<ReportManagementDto>> getReportById(
-            @PathVariable Long id
-    ) {
-        ReportManagementDto report = reportManagementService.getReportById(id);
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Get report details")
+    public ResponseEntity<ApiResponse<ReportManagementDto>> getReportById(@PathVariable Long id) {
+        ReportManagementDto report = reportManagementService.getAdminReportDetail(id);
         return ResponseEntity.ok(ApiResponse.success("Report retrieved successfully", report));
     }
 
     @PostMapping("/{id}/process")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Mark report as processing",
-        description = "Admin starts processing a pending report"
-    )
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Mark report as processing")
     public ResponseEntity<ApiResponse<ReportManagementDto>> processReport(
             @PathVariable Long id,
             @RequestBody(required = false) ReportActionRequest request
@@ -114,32 +82,26 @@ public class ReportManagementController {
     }
 
     @PostMapping("/{id}/resolve")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Resolve report with action",
-        description = "Admin resolves a report with specific action (lock, warning, etc.)"
-    )
-    public ResponseEntity<ApiResponse<?>> resolveReport(
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Resolve report with action")
+    public ResponseEntity<ApiResponse<ReportManagementDto>> resolveReport(
             @PathVariable Long id,
             @Valid @RequestBody ReportActionRequest request
     ) {
-        String adminUsername = "admin"; // TODO: Get from authentication context
-        var response = reportManagementService.resolveReport(id, request, adminUsername);
+        String adminUsername = "admin";
+        ReportManagementDto response = reportManagementService.resolveReport(id, request, adminUsername);
         return ResponseEntity.ok(ApiResponse.success("Report resolved successfully", response));
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-        summary = "Reject report",
-        description = "Admin rejects a report (invalid/false report)"
-    )
-    public ResponseEntity<ApiResponse<?>> rejectReport(
+    @PreAuthorize("hasAuthority('ADMIN')") 
+    @Operation(summary = "Reject report")
+    public ResponseEntity<ApiResponse<ReportManagementDto>> rejectReport(
             @PathVariable Long id,
             @Valid @RequestBody ReportActionRequest request
     ) {
-        String adminUsername = "admin"; // TODO: Get from authentication context
-        var response = reportManagementService.rejectReport(id, request.getReason(), adminUsername);
+        String adminUsername = "admin";
+        ReportManagementDto response = reportManagementService.rejectReport(id, request.getReason(), adminUsername);
         return ResponseEntity.ok(ApiResponse.success("Report rejected", response));
     }
 

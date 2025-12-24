@@ -28,6 +28,7 @@ public class VoucherController {
     @PostMapping
     @Operation(summary = "Create a new voucher", description = "Admin creates a new voucher")
     @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<VoucherDto>> createVoucher(@RequestBody VoucherDto voucherDto) {
         VoucherDto createdVoucher = voucherService.createVoucher(voucherDto);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -63,7 +64,7 @@ public class VoucherController {
     
     // Admin endpoints
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Update voucher", description = "Admin updates an existing voucher")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<VoucherDto>> updateVoucher(
@@ -74,7 +75,7 @@ public class VoucherController {
     }
     
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Delete voucher", description = "Admin deletes a voucher")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<Void>> deleteVoucher(@PathVariable Long id) {

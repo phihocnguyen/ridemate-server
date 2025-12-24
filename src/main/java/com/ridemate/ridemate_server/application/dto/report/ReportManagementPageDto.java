@@ -12,9 +12,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReportManagementPageDto {
-    private List<ReportManagementDto> reports;
-    private Integer currentPage;
-    private Integer totalPages;
-    private Long totalElements;
-    private Integer pageSize;
+    private List<ReportManagementDto> reports; 
+    private int pageNo;
+    private int pageSize;
+    private long totalElements;
+    private int totalPages;
+    private boolean last;
 }

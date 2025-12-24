@@ -3,6 +3,7 @@ package com.ridemate.ridemate_server.domain.entity;
 import com.ridemate.ridemate_server.infrastructure.persistence.converter.VectorAttributeConverter;
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -56,6 +57,18 @@ public class User extends BaseEntity {
 
     @Column(nullable = true, columnDefinition = "TEXT")
     private String profilePictureUrl;
+
+    @Column(nullable = true)
+    private LocalDate dob;
+
+    @Column(nullable = true, length = 500, columnDefinition = "VARCHAR(500)")
+    private String address;
+
+    @Column(nullable = true, length = 100, columnDefinition = "VARCHAR(100)")
+    private String bankName;
+
+    @Column(nullable = true, length = 50, columnDefinition = "VARCHAR(50)")
+    private String bankAccountNumber;
 
     @Column(nullable = false, columnDefinition = "FLOAT DEFAULT 0.0")
     @Builder.Default

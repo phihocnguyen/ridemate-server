@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,21 +13,34 @@ import java.util.List;
 @AllArgsConstructor
 public class ReportManagementDto {
     private Long id;
-    private Long reporterId;
-    private String reporterName;
-    private String reporterPhone;
-    private Long reportedUserId;
-    private String reportedUserName;
-    private String reportedUserPhone;
+    private UserInfo reporter;
+    private String reporterName; 
+    private UserInfo reportedUser;
     private Long matchId;
     private String title;
     private String description;
-    private String category;
+    private String category; 
     private String status;
     private String evidenceUrl;
+    private String resolutionAction;
+    private String resolutionNotes;
+    private LocalDateTime resolvedAt;
+    private String resolvedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
     // Session messages for admin review
     private List<SessionMessageDto> sessionMessages;
+}
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserInfo {
+        private Long id;
+        private String fullName;
+        private String phoneNumber;
+        private String profilePictureUrl;
+    }
 }

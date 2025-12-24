@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,9 +22,16 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByEmail(String email);
     boolean existsByPhoneNumber(String phoneNumber);
     
-    // For driver matching algorithm
     List<User> findByUserTypeAndDriverStatus(User.UserType userType, User.DriverStatus driverStatus);
     
+    long countByUserType(User.UserType userType);
+    
+    @Query("SELECT COUNT(u) FROM User u WHERE u.userType = :userType AND u.createdAt >= :startDate")
+    long countByUserTypeSince(@Param("userType") User.UserType userType, 
+                              @Param("startDate") LocalDateTime startDate);
+    
+    @Query("SELECT COUNT(u) FROM User u WHERE u.userType = 'DRIVER' AND u.driverStatus = 'ONLINE'")
+    long countActiveDrivers();
     // For user management
     Page<User> findByUserType(User.UserType userType, Pageable pageable);
     
@@ -32,9 +40,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Page<User> findByDriverApprovalStatus(User.DriverApprovalStatus driverApprovalStatus, Pageable pageable);
     
     List<User> findByDriverApprovalStatus(User.DriverApprovalStatus driverApprovalStatus);
-    
-    // Statistics queries
-    long countByUserType(User.UserType userType);
     
     long countByIsActive(Boolean isActive);
     
