@@ -28,6 +28,8 @@ public class ReportManagementService {
 
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
+    private final com.ridemate.ridemate_server.domain.repository.SessionRepository sessionRepository;
+    private final com.ridemate.ridemate_server.domain.repository.MessageRepository messageRepository;
 
     /**
      * Get all reports with pagination and filters
@@ -255,6 +257,12 @@ public class ReportManagementService {
      * Map Report entity to ReportManagementDto
      */
     private ReportManagementDto mapToReportManagementDto(Report report) {
+        // Fetch session messages if match exists
+        List<SessionMessageDto> sessionMessages = null;
+        if (report.getMatch() != null) {
+            sessionMessages = fetchSessionMessages(report.getMatch().getId());
+        }
+        
         return ReportManagementDto.builder()
             .id(report.getId())
             .reporterId(report.getReporter().getId())
@@ -271,6 +279,35 @@ public class ReportManagementService {
             .evidenceUrl(report.getEvidenceUrl())
             .createdAt(report.getCreatedAt())
             .updatedAt(report.getUpdatedAt())
+            .sessionMessages(sessionMessages)
             .build();
+    }
+    
+    /**
+     * Fetch all messages from a session for admin review
+     */
+    private List<SessionMessageDto> fetchSessionMessages(Long matchId) {
+        try {
+            return sessionRepository.findByMatchId(matchId)
+                .map(session -> {
+                    List<com.ridemate.ridemate_server.domain.entity.Message> messages = 
+                        messageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
+                    
+                    return messages.stream()
+                        .map(msg -> SessionMessageDto.builder()
+                            .id(msg.getId())
+                            .senderId(msg.getSender().getId())
+                            .senderName(msg.getSender().getFullName())
+                            .content(msg.getContent())
+                            .type(msg.getType().name())
+                            .createdAt(msg.getCreatedAt())
+                            .build())
+                        .collect(Collectors.toList());
+                })
+                .orElse(List.of()); // Return empty list if no session found
+        } catch (Exception e) {
+            log.warn("Failed to fetch session messages for match {}: {}", matchId, e.getMessage());
+            return List.of();
+        }
     }
 }

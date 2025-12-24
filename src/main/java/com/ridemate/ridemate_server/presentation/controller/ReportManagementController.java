@@ -142,4 +142,38 @@ public class ReportManagementController {
         var response = reportManagementService.rejectReport(id, request.getReason(), adminUsername);
         return ResponseEntity.ok(ApiResponse.success("Report rejected", response));
     }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Update report status (legacy endpoint)",
+        description = "Update report status - supports RESOLVED or REJECTED with optional action"
+    )
+    public ResponseEntity<ApiResponse<?>> updateReportStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody com.ridemate.ridemate_server.application.dto.report.UpdateReportStatusRequest request
+    ) {
+        String adminUsername = "admin"; // TODO: Get from authentication context
+        
+        // If status is RESOLVED, use resolve endpoint logic
+        if ("RESOLVED".equalsIgnoreCase(request.getStatus()) && request.getResolutionAction() != null) {
+            ReportActionRequest actionRequest = new ReportActionRequest();
+            actionRequest.setActionType(com.ridemate.ridemate_server.application.dto.report.ReportActionType.valueOf(request.getResolutionAction()));
+            actionRequest.setReason(request.getResolutionNotes());
+            
+            var response = reportManagementService.resolveReport(id, actionRequest, adminUsername);
+            return ResponseEntity.ok(ApiResponse.success("Report resolved successfully", response));
+        }
+        
+        // If status is REJECTED, use reject endpoint logic
+        if ("REJECTED".equalsIgnoreCase(request.getStatus())) {
+            var response = reportManagementService.rejectReport(id, request.getResolutionNotes(), adminUsername);
+            return ResponseEntity.ok(ApiResponse.success("Report rejected", response));
+        }
+        
+        // For other statuses, return error
+        return ResponseEntity.badRequest().body(
+            ApiResponse.error(400, "Invalid status. Use RESOLVED or REJECTED")
+        );
+    }
 }
