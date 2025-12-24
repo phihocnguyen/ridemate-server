@@ -31,8 +31,7 @@ public class ReportManagementDto {
     
     // Session messages for admin review
     private List<SessionMessageDto> sessionMessages;
-}
-
+    
     @Data
     @Builder
     @NoArgsConstructor

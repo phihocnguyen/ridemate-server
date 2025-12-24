@@ -3,7 +3,6 @@ package com.ridemate.ridemate_server.application.service.report.impl;
 import com.ridemate.ridemate_server.application.dto.report.CreateReportRequest;
 import com.ridemate.ridemate_server.application.dto.report.ReportResponse;
 import com.ridemate.ridemate_server.application.dto.report.UpdateReportStatusRequest;
-import com.ridemate.ridemate_server.application.mapper.ReportMapper;
 import com.ridemate.ridemate_server.application.dto.report.*;
 import com.ridemate.ridemate_server.application.service.report.ReportManagementService;
 import com.ridemate.ridemate_server.application.service.report.ReportService;
@@ -125,6 +124,11 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
 
     @Override
     public ReportStatisticsDto getReportStatistics() {
+        return buildReportStatisticsDto();
+    }
+    
+    // Private helper to avoid code duplication
+    private ReportStatisticsDto buildReportStatisticsDto() {
         return ReportStatisticsDto.builder()
                 .totalReports(reportRepository.count())
                 .pendingReports(reportRepository.countByStatus(Report.ReportStatus.PENDING))
@@ -285,7 +289,7 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
             reports = reportRepository.findAll(pageable);
         }
         
-        return reports.map(reportMapper::toResponse);
+        return reports.map(this::mapToResponse);
     }
     
     @Override
@@ -346,23 +350,6 @@ public class ReportServiceImpl implements ReportService, ReportManagementService
         }
         
         report = reportRepository.save(report);
-        return reportMapper.toResponse(report);
-    }
-    
-    @Override
-    public Map<String, Long> getReportStatistics() {
-        long totalReports = reportRepository.count();
-        long pendingReports = reportRepository.countByStatus(Report.ReportStatus.PENDING);
-        long processingReports = reportRepository.countByStatus(Report.ReportStatus.PROCESSING);
-        long resolvedReports = reportRepository.countByStatus(Report.ReportStatus.RESOLVED);
-        long rejectedReports = reportRepository.countByStatus(Report.ReportStatus.REJECTED);
-        
-        return Map.of(
-            "totalReports", totalReports,
-            "pendingReports", pendingReports,
-            "processingReports", processingReports,
-            "resolvedReports", resolvedReports,
-            "rejectedReports", rejectedReports
-        );
+        return mapToResponse(report);
     }
 }
