@@ -16,18 +16,23 @@ import com.ridemate.ridemate_server.application.service.match.DriverMatchingServ
 import com.ridemate.ridemate_server.application.service.match.MatchService;
 import com.ridemate.ridemate_server.application.service.notification.NotificationService;
 import com.ridemate.ridemate_server.application.service.session.SessionService;
+import com.ridemate.ridemate_server.application.service.driver.SupabaseRealtimeService;
 import com.ridemate.ridemate_server.domain.entity.Match;
 import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.domain.entity.Vehicle;
 import com.ridemate.ridemate_server.domain.repository.MatchRepository;
+import com.ridemate.ridemate_server.domain.repository.RouteBookingRepository;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
 import com.ridemate.ridemate_server.domain.repository.VehicleRepository;
+import com.ridemate.ridemate_server.domain.entity.RouteBooking;
+import com.ridemate.ridemate_server.application.mapper.RouteBookingMapper;
 import com.ridemate.ridemate_server.presentation.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -66,11 +71,20 @@ public class MatchServiceImpl implements MatchService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired(required = false)
+    private SupabaseRealtimeService supabaseRealtimeService;
+
     @Autowired
     private UserService userService;
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private RouteBookingRepository routeBookingRepository;
+
+    @Autowired
+    private RouteBookingMapper routeBookingMapper;
 
     @Override
     @Transactional
@@ -105,9 +119,12 @@ public class MatchServiceImpl implements MatchService {
                 .pickupLongitude(request.getPickupLongitude())
                 .destinationLatitude(request.getDestinationLatitude())
                 .destinationLongitude(request.getDestinationLongitude())
+                .distance(request.getDistance() != null ? request.getDistance().doubleValue() : null)
+                .duration(request.getDuration())
                 .coin(coin)
                 .fare(coin != null ? coin : 0)
                 .status(Match.MatchStatus.PENDING)  // Start as PENDING
+                .routePolyline(request.getRoutePolyline())  // Store route polyline from client
                 .build();
 
         match = matchRepository.save(match);
@@ -229,6 +246,19 @@ public class MatchServiceImpl implements MatchService {
             } catch (Exception e) {
                 log.warn("⚠️ Failed to parse matchedDriverCandidates for match {}: {}", matchId, e.getMessage());
             }
+        } // Added missing closing brace here
+
+        // Try to find associated RouteBooking
+        try {
+            List<RouteBooking> bookings = routeBookingRepository.findByMatchId(matchId);
+            if (!bookings.isEmpty()) {
+                // Taking the first booking found (assuming 1-to-1 or just one for now)
+                RouteBooking booking = bookings.get(0);
+                response.setRouteBooking(routeBookingMapper.toResponse(booking));
+                log.debug("✅ Found RouteBooking {} for match {}", booking.getId(), matchId);
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Error fetching RouteBooking for match {}: {}", matchId, e.getMessage());
         }
         
         return response;
@@ -406,11 +436,39 @@ public class MatchServiceImpl implements MatchService {
         try {
             switch (newStatus) {
                 case WAITING: // Driver arrived (custom mapping if needed, or if updated from ARRIVED)
-                     // If you have a specific ARRIVED status, use that. Assuming WAITING is not meaning arrived here.
-                     // Based on context, let's look for valid statuses.
-                     // If logic requires specific status for 'Arrived', ensure it exists. 
-                     // For now, I will add notifications for COMPLETED and CANCELLED as they are standard.
                      break;
+                
+                case ACCEPTED: // Match accepted by driver
+                    // Publish match to Supabase to trigger realtime updates for passenger
+                    try {
+                        if (supabaseRealtimeService == null) {
+                            log.warn("⚠️ SupabaseRealtimeService is null, match {} will not be published to Supabase", match.getId());
+                        } else {
+                            log.info("📤 Preparing to publish match {} to Supabase (ACCEPTED)...", match.getId());
+                            
+                            Map<String, Object> matchData = new HashMap<>();
+                            matchData.put("id", match.getId());
+                            matchData.put("passenger_id", match.getPassenger().getId());
+                            if (match.getDriver() != null) {
+                                matchData.put("driver_id", match.getDriver().getId());
+                            }
+                            matchData.put("pickup_latitude", match.getPickupLatitude());
+                            matchData.put("pickup_longitude", match.getPickupLongitude());
+                            matchData.put("destination_latitude", match.getDestinationLatitude());
+                            matchData.put("destination_longitude", match.getDestinationLongitude());
+                            matchData.put("status", match.getStatus().name());
+                            if (match.getCreatedAt() != null) {
+                                matchData.put("created_at", match.getCreatedAt().toString());
+                            }
+                            
+                            log.debug("Match data prepared: {}", matchData);
+                            supabaseRealtimeService.publishMatch(matchData);
+                            log.info("✅ Published match {} to Supabase for realtime passenger notification (ACCEPTED)", match.getId());
+                        }
+                    } catch (Exception e) {
+                        log.error("❌ Failed to publish match {} to Supabase: {}", match.getId(), e.getMessage(), e);
+                    }
+                    break;
                      
                 case IN_PROGRESS: // Trip Started
                     notificationService.sendNotification(
@@ -420,16 +478,58 @@ public class MatchServiceImpl implements MatchService {
                         "TRIP_STARTED", 
                         match.getId()
                     );
+                    
+                    // Publish match to Supabase to trigger realtime updates for passenger
+                    try {
+                        if (supabaseRealtimeService == null) {
+                            log.warn("⚠️ SupabaseRealtimeService is null, match {} will not be published to Supabase", match.getId());
+                        } else {
+                            log.info("📤 Preparing to publish match {} to Supabase (IN_PROGRESS)...", match.getId());
+                            
+                            Map<String, Object> matchData = new HashMap<>();
+                            matchData.put("id", match.getId());
+                            matchData.put("passenger_id", match.getPassenger().getId());
+                            if (match.getDriver() != null) {
+                                matchData.put("driver_id", match.getDriver().getId());
+                            }
+                            matchData.put("pickup_latitude", match.getPickupLatitude());
+                            matchData.put("pickup_longitude", match.getPickupLongitude());
+                            matchData.put("destination_latitude", match.getDestinationLatitude());
+                            matchData.put("destination_longitude", match.getDestinationLongitude());
+                            matchData.put("status", match.getStatus().name());
+                            if (match.getCreatedAt() != null) {
+                                matchData.put("created_at", match.getCreatedAt().toString());
+                            }
+                            
+                            log.debug("Match data prepared: {}", matchData);
+                            supabaseRealtimeService.publishMatch(matchData);
+                            log.info("✅ Published match {} to Supabase for realtime passenger notification (IN_PROGRESS)", match.getId());
+                        }
+                    } catch (Exception e) {
+                        log.error("❌ Failed to publish match {} to Supabase: {}", match.getId(), e.getMessage(), e);
+                    }
                     break;
 
                 case COMPLETED:
+                    // Thông báo cho hành khách
                     notificationService.sendNotification(
                         match.getPassenger(), 
                         "Ride Completed", 
-                        "You have arrived at your destination. total: " + match.getFare() + " coins.", 
+                        "You have arrived at your destination. Total: " + match.getFare() + " coins.", 
                         "RIDE_COMPLETED", 
                         match.getId()
                     );
+
+                    // Thông báo cho tài xế (nếu tồn tại)
+                    if (match.getDriver() != null) {
+                        notificationService.sendNotification(
+                            match.getDriver(),
+                            "Ride Completed",
+                            "You have successfully completed the ride.",
+                            "RIDE_COMPLETED",
+                            match.getId()
+                        );
+                    }
                     break;
 
                 case CANCELLED:
@@ -445,11 +545,6 @@ public class MatchServiceImpl implements MatchService {
                     }
                     break;
             }
-            
-            // Special case for 'ARRIVED' if it exists in Enum or is mapped from somewhere else.
-            // If the request passes a status that isn't in the entity but is logical, we might need to handle it.
-            // However, assuming `MatchStatus` matches the Entity definition.
-            
         } catch (Exception e) {
             log.error("Failed to send status update notification: {}", e.getMessage());
         }
@@ -464,14 +559,32 @@ public class MatchServiceImpl implements MatchService {
                 float completionRate = ((float) driver.getTotalRidesCompleted() / driver.getTotalRidesAccepted()) * 100;
                 driver.setCompletionRate(completionRate);
             }
+
+            // Reward driver with coins
+            // If match coin is null or 0, attempt to recalculate or default to 10
+            int earnedCoins = match.getCoin() != null ? match.getCoin() : 0;
+            if (earnedCoins <= 0) {
+                try {
+                    Integer calculated = coinCalculationService.calculateCoinFromCoordinates(
+                        match.getPickupLatitude(), match.getPickupLongitude(),
+                        match.getDestinationLatitude(), match.getDestinationLongitude()
+                    );
+                    earnedCoins = calculated != null ? calculated : 10;
+                    match.setCoin(earnedCoins); // Update match record
+                } catch (Exception e) {
+                    earnedCoins = 10; // Fallback minimum
+                }
+            }
+            
+            driver.setCoins(driver.getCoins() + earnedCoins);
             
             // Set driver back to ONLINE (available for next ride)
             driver.setDriverStatus(User.DriverStatus.ONLINE);
             
             userRepository.save(driver);
             
-            log.info("Driver {} completed match {}. Stats - Completed: {}, Completion Rate: {:.1f}%", 
-                    driver.getId(), matchId, driver.getTotalRidesCompleted(), driver.getCompletionRate());
+            log.info("Driver {} completed match {}. Earned {} coins. Total coins: {}. Stats - Completed: {}, Completion Rate: {:.1f}%", 
+                    driver.getId(), matchId, earnedCoins, driver.getCoins(), driver.getTotalRidesCompleted(), driver.getCompletionRate());
         }
 
         // ===== SET DRIVER BACK TO ONLINE IF CANCELLED =====
@@ -485,6 +598,7 @@ public class MatchServiceImpl implements MatchService {
             try {
                 sessionService.endSession(matchId);
             } catch (Exception e) {
+                log.warn("Failed to end session for match {}: {}", matchId, e.getMessage());
             }
         }
 
@@ -513,8 +627,6 @@ public class MatchServiceImpl implements MatchService {
         match.setStatus(Match.MatchStatus.CANCELLED);
         match = matchRepository.save(match);
 
-        match = matchRepository.save(match);
-
         // ===== SEND NOTIFICATION =====
         try {
             User targetUser = isPassenger ? match.getDriver() : match.getPassenger();
@@ -535,7 +647,7 @@ public class MatchServiceImpl implements MatchService {
         try {
             sessionService.endSession(matchId);
         } catch (Exception e) {
-            // Bỏ qua nếu session đã đóng
+            log.warn("Failed to end session for match {}: {}", matchId, e.getMessage());
         }
 
         return matchMapper.toResponse(match);

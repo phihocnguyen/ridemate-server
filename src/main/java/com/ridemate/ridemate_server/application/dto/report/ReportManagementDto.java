@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -27,6 +28,10 @@ public class ReportManagementDto {
     private String resolvedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // Session messages for admin review
+    private List<SessionMessageDto> sessionMessages;
+}
 
     @Data
     @Builder

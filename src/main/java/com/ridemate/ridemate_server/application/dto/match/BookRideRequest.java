@@ -31,4 +31,13 @@ public class BookRideRequest {
     @NotBlank(message = "Vehicle type is required")
     @Schema(example = "MOTORBIKE", allowableValues = {"MOTORBIKE", "CAR"})
     private String vehicleType;
+
+    @Schema(description = "Encoded polyline string of the route (from OSRM Directions API)", example = "encoded_polyline_string")
+    private String routePolyline;
+
+    @Schema(description = "Distance in meters", example = "5000")
+    private Integer distance;
+
+    @Schema(description = "Duration in minutes", example = "15")
+    private Integer duration;
 }

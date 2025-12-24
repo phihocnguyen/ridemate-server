@@ -1,5 +1,6 @@
 package com.ridemate.ridemate_server.domain.entity;
 
+import com.ridemate.ridemate_server.infrastructure.persistence.converter.VectorAttributeConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -81,13 +82,13 @@ public class User extends BaseEntity {
     @Column(nullable = true, columnDefinition = "TEXT")
     private String idCardImageUrl;
     
-    // ID card face embedding - embedding từ ảnh CCCD
-    @Column(nullable = true, columnDefinition = "vector(512)")
-    private String idCardFaceEmbedding; // Embedding từ ảnh căn cước
+    @Column(nullable = true, columnDefinition = "vector(512)", updatable = false)
+    @Convert(converter = VectorAttributeConverter.class)
+    private String idCardFaceEmbedding;
     
-    // Selfie face embedding - embedding từ ảnh selfie (liveness check)
-    @Column(nullable = true, columnDefinition = "vector(512)")
-    private String faceEmbedding; // Embedding từ ảnh selfie để so khớp
+    @Column(nullable = true, columnDefinition = "vector(512)", updatable = false)
+    @Convert(converter = VectorAttributeConverter.class)
+    private String faceEmbedding;
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

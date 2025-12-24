@@ -27,6 +27,7 @@ public class TemporaryVerification {
     private String selfieFaceEmbedding;  // Embedding from liveness selfie
     
     @Column(name = "liveness_verified")
+    @Builder.Default
     private Boolean livenessVerified = false;
     
     @Column(name = "similarity_score")

@@ -4,6 +4,8 @@ import com.ridemate.ridemate_server.domain.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -42,5 +44,19 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     long countByIsActive(Boolean isActive);
     
     long countByDriverApprovalStatus(User.DriverApprovalStatus driverApprovalStatus);
+    
+    // Custom update query to avoid triggering vector converter on login
+    @Modifying
+    @Query(value = "UPDATE users SET driver_status = :status, " +
+           "current_latitude = :latitude, current_longitude = :longitude, " +
+           "last_location_update = :lastUpdate WHERE id = :userId", 
+           nativeQuery = true)
+    void updateDriverStatusAndLocation(
+        @Param("userId") Long userId,
+        @Param("status") String status,
+        @Param("latitude") Double latitude,
+        @Param("longitude") Double longitude,
+        @Param("lastUpdate") LocalDateTime lastUpdate
+    );
 }
 

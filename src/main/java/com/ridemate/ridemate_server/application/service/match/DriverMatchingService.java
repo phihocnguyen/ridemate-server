@@ -48,9 +48,6 @@ public class DriverMatchingService {
     
     // ETA calculation: assume average speed 30 km/h in city
     private static final double AVERAGE_SPEED_KMH = 30.0;
-    
-    // Location staleness check: reject locations older than 60 minutes (extended for testing)
-    private static final int MAX_LOCATION_STALENESS_MINUTES = 60;
 
     /**
      * Find best matching drivers for a ride request
@@ -230,20 +227,18 @@ public class DriverMatchingService {
     }
 
     /**
-     * Check if driver's location is valid and not stale
+     * Check if driver's location is valid
+     * Chỉ kiểm tra xem driver có location coordinates hay không
+     * Không kiểm tra thời gian stale vì location có thể được sync realtime từ Supabase
      */
     private boolean isLocationValid(User driver) {
         if (driver.getCurrentLatitude() == null || driver.getCurrentLongitude() == null) {
+            log.debug("Driver {} has no location coordinates", driver.getId());
             return false;
         }
 
-        if (driver.getLastLocationUpdate() == null) {
-            return true; // Allow if never updated (for backward compatibility)
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime staleThreshold = now.minusMinutes(MAX_LOCATION_STALENESS_MINUTES);
-        
-        return driver.getLastLocationUpdate().isAfter(staleThreshold);
+        // Chỉ cần có location coordinates là đủ
+        // Không kiểm tra lastLocationUpdate vì location có thể được sync realtime từ Supabase
+        return true;
     }
 }

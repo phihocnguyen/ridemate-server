@@ -81,6 +81,8 @@ public interface RouteBookingRepository extends JpaRepository<RouteBooking, Long
     @Query("SELECT COUNT(b) FROM RouteBooking b WHERE b.route.id = :routeId AND b.status = :status")
     Long countByRouteIdAndStatus(@Param("routeId") Long routeId, @Param("status") RouteBooking.BookingStatus status);
 
+    List<RouteBooking> findByMatchId(Long matchId);
+
     /**
      * Find bookings for a specific date range
      */

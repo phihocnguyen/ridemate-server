@@ -55,6 +55,11 @@ public class MatchResponse {
     
     private LocalDateTime createdAt;
     
+    private Long sessionId;
+    
+    private Double driverCurrentLatitude;
+    private Double driverCurrentLongitude;
+
     // ✅ NEW: List of matched driver candidates
     @Schema(description = "List of available drivers for this match")
     private List<DriverCandidate> matchedDriverCandidates;
@@ -73,4 +78,10 @@ public class MatchResponse {
     private String vehicleModel;
     private String licensePlate;
     private Integer estimatedPrice;
+
+    @Schema(description = "Encoded polyline string of the route (from OSRM Directions API)")
+    private String routePolyline;
+
+    @Schema(description = "Associated route booking details if applicable")
+    private com.ridemate.ridemate_server.application.dto.route.RouteBookingResponse routeBooking;
 }
