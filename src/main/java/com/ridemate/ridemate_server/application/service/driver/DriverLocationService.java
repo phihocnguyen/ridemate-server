@@ -180,20 +180,27 @@ public class DriverLocationService {
         driver.setDriverStatus(driverStatus);
         
         if (driverStatus == User.DriverStatus.ONLINE) {
+            // Đảm bảo driver có location hợp lệ khi set ONLINE
             if (driver.getCurrentLatitude() == null || driver.getCurrentLongitude() == null) {
+                log.warn("Driver {} has no location, setting default location", driverId);
                 driver.setCurrentLatitude(BASE_LAT);
                 driver.setCurrentLongitude(BASE_LON);
             }
+            // QUAN TRỌNG: Update lastLocationUpdate để isLocationValid() không reject driver
             driver.setLastLocationUpdate(LocalDateTime.now());
             
             userRepository.save(driver);
             
+            // Sync lên Supabase để frontend có thể fetch nearby drivers
             supabaseRealtimeService.updateDriverLocation(
                     driverId,
                     driver.getCurrentLatitude(),
                     driver.getCurrentLongitude(),
                     driverStatus.name()
             );
+            
+            log.info("Driver {} set ONLINE at location ({}, {})", 
+                    driverId, driver.getCurrentLatitude(), driver.getCurrentLongitude());
         } else {
             userRepository.save(driver);
             supabaseRealtimeService.removeDriverLocation(driverId);

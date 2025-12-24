@@ -153,31 +153,68 @@ public class SupabaseRealtimeService {
 
     public void publishMatch(Map<String, Object> matchData) {
         if (supabaseWebClient == null) {
-            log.debug("Supabase not configured, skipping match publish");
+            log.warn("⚠️ Supabase WebClient not configured, skipping match publish");
             return;
         }
 
         try {
+            Object matchId = matchData.get("id");
+            if (matchId == null) {
+                log.warn("⚠️ Cannot publish match to Supabase: match ID is missing");
+                return;
+            }
+
+            log.info("📤 Publishing match {} to Supabase...", matchId);
+
+            // Use POST with UPSERT (on_conflict) to handle both insert and update cases
+            // This ensures match is created/updated in Supabase and triggers realtime event
             supabaseWebClient
                     .post()
-                    .uri("/matches")
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/matches")
+                            .queryParam("on_conflict", "id")
+                            .build())
+                    .header("Prefer", "resolution=merge-duplicates")
                     .bodyValue(matchData)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .doOnSuccess(response -> log.info("Match {} published to Supabase: {}", matchData.get("id"), response))
+                    .doOnSuccess(response -> log.info("✅ Match {} published/updated in Supabase (realtime trigger): {}", matchId, response))
                     .doOnError(error -> {
                         if (error instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
                             org.springframework.web.reactive.function.client.WebClientResponseException ex = (org.springframework.web.reactive.function.client.WebClientResponseException) error;
-                            log.error("Failed to publish match. Status: {}, Body: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+                            log.error("❌ Failed to publish match {} to Supabase. Status: {}, Body: {}", matchId, ex.getStatusCode(), ex.getResponseBodyAsString());
                         } else {
-                            log.error("Failed to publish match: {}", error.getMessage());
+                            log.error("❌ Failed to publish match {} to Supabase: {}", matchId, error.getMessage());
                         }
                     })
-                    .onErrorResume(e -> Mono.empty())
+                    .onErrorResume(e -> {
+                        log.error("❌ Error publishing match {} to Supabase, will try PATCH as fallback", matchId, e);
+                        // Fallback: Try PATCH if POST fails (match might already exist)
+                        return tryPatchMatch(matchId, matchData);
+                    })
                     .subscribe();
 
         } catch (Exception e) {
-            log.error("Error publishing match to Supabase", e);
+            log.error("❌ Error publishing match to Supabase", e);
         }
+    }
+
+    private Mono<String> tryPatchMatch(Object matchId, Map<String, Object> matchData) {
+        if (supabaseWebClient == null) {
+            return Mono.empty();
+        }
+
+        return supabaseWebClient
+                .patch()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/matches")
+                        .queryParam("id", "eq." + matchId)
+                        .build())
+                .bodyValue(matchData)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnSuccess(response -> log.info("✅ Match {} updated in Supabase via PATCH (fallback): {}", matchId, response))
+                .doOnError(error -> log.error("❌ Failed to update match {} in Supabase via PATCH: {}", matchId, error.getMessage()))
+                .onErrorResume(e -> Mono.empty());
     }
 }

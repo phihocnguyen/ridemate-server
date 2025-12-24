@@ -3,6 +3,7 @@ package com.ridemate.ridemate_server.application.service.route.impl;
 import com.ridemate.ridemate_server.application.dto.route.CreateRouteBookingRequest;
 import com.ridemate.ridemate_server.application.dto.route.RouteBookingResponse;
 import com.ridemate.ridemate_server.application.mapper.RouteBookingMapper;
+import com.ridemate.ridemate_server.application.service.driver.SupabaseRealtimeService;
 import com.ridemate.ridemate_server.application.service.notification.NotificationService;
 import com.ridemate.ridemate_server.application.service.route.RouteBookingService;
 import com.ridemate.ridemate_server.application.service.session.SessionService;
@@ -16,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -44,6 +47,9 @@ public class RouteBookingServiceImpl implements RouteBookingService {
 
     @Autowired
     private SessionService sessionService;
+
+    @Autowired(required = false)
+    private SupabaseRealtimeService supabaseRealtimeService;
 
     @Override
     @Transactional
@@ -312,7 +318,8 @@ public class RouteBookingServiceImpl implements RouteBookingService {
     @Override
     @Transactional
     public RouteBookingResponse startTrip(Long bookingId, Long driverId) {
-        log.info("Driver {} starting trip for booking {}", driverId, bookingId);
+        log.error("🚀🚀🚀 RouteBookingServiceImpl.startTrip CALLED - Driver {} starting trip for booking {} 🚀🚀🚀", driverId, bookingId);
+        System.out.println("🚀🚀🚀 RouteBookingServiceImpl.startTrip CALLED - Driver " + driverId + " starting trip for booking " + bookingId + " 🚀🚀🚀");
 
         RouteBooking booking = routeBookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
@@ -322,9 +329,77 @@ public class RouteBookingServiceImpl implements RouteBookingService {
             throw new IllegalArgumentException("You don't have permission to start this trip");
         }
 
-        // Validate booking status
-        if (booking.getStatus() != RouteBooking.BookingStatus.ACCEPTED) {
-            throw new IllegalArgumentException("Booking must be accepted before starting trip");
+        // Validate booking status - Allow both ACCEPTED and IN_PROGRESS
+        // IN_PROGRESS is allowed to ensure match is published to Supabase even if already started
+        if (booking.getStatus() != RouteBooking.BookingStatus.ACCEPTED && 
+            booking.getStatus() != RouteBooking.BookingStatus.IN_PROGRESS) {
+            throw new IllegalArgumentException("Booking must be accepted or in progress before starting trip");
+        }
+        
+        // If already IN_PROGRESS, check if match exists and just publish it
+        if (booking.getStatus() == RouteBooking.BookingStatus.IN_PROGRESS && booking.getMatch() != null) {
+            log.info("Booking {} is already IN_PROGRESS with match {}, will publish match to Supabase", 
+                    bookingId, booking.getMatch().getId());
+            
+            Match match = booking.getMatch();
+            
+            // Reload match from DB to ensure we have all fields
+            match = matchRepository.findById(match.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Match not found"));
+            
+            // Publish match to Supabase to trigger realtime updates for passenger
+            log.info("🚀 Attempting to publish existing match {} to Supabase (status: {})", match.getId(), match.getStatus());
+            
+            if (supabaseRealtimeService == null) {
+                log.error("❌ SupabaseRealtimeService is NULL! Match {} will NOT be published to Supabase. Check Supabase configuration.", match.getId());
+            } else {
+                log.info("✅ SupabaseRealtimeService is available, proceeding with publish...");
+                
+                try {
+                    Map<String, Object> matchData = new HashMap<>();
+                    matchData.put("id", match.getId());
+                    matchData.put("passenger_id", match.getPassenger().getId());
+                    if (match.getDriver() != null) {
+                        matchData.put("driver_id", match.getDriver().getId());
+                    } else {
+                        log.warn("⚠️ Match {} has no driver!", match.getId());
+                    }
+                    matchData.put("pickup_latitude", match.getPickupLatitude());
+                    matchData.put("pickup_longitude", match.getPickupLongitude());
+                    matchData.put("pickup_address", match.getPickupAddress());
+                    matchData.put("destination_latitude", match.getDestinationLatitude());
+                    matchData.put("destination_longitude", match.getDestinationLongitude());
+                    matchData.put("destination_address", match.getDestinationAddress());
+                    matchData.put("status", match.getStatus().name());
+                    
+                    // Add matched_driver_candidates field (required for Supabase schema)
+                    // For fixed route, match already has driver, so use empty array or existing value
+                    if (match.getMatchedDriverCandidates() != null && !match.getMatchedDriverCandidates().isEmpty()) {
+                        matchData.put("matched_driver_candidates", match.getMatchedDriverCandidates());
+                    } else {
+                        matchData.put("matched_driver_candidates", "[]");
+                    }
+                    
+                    // Use createdAt if available, otherwise use current time
+                    if (match.getCreatedAt() != null) {
+                        matchData.put("created_at", match.getCreatedAt().toString());
+                        log.debug("Using match createdAt: {}", match.getCreatedAt());
+                    } else {
+                        String now = java.time.LocalDateTime.now().toString();
+                        matchData.put("created_at", now);
+                        log.warn("⚠️ Match {} has no createdAt, using current time: {}", match.getId(), now);
+                    }
+                    
+                    log.info("📤 Publishing existing match {} to Supabase with data: {}", match.getId(), matchData);
+                    supabaseRealtimeService.publishMatch(matchData);
+                    log.info("✅ Published existing match {} to Supabase for realtime passenger notification", match.getId());
+                } catch (Exception e) {
+                    log.error("❌ CRITICAL: Failed to publish existing match {} to Supabase: {}", match.getId(), e.getMessage(), e);
+                    e.printStackTrace();
+                }
+            }
+            
+            return routeBookingMapper.toResponse(booking);
         }
 
         // Create Match entity (similar to existing ride flow)
@@ -358,6 +433,80 @@ public class RouteBookingServiceImpl implements RouteBookingService {
         booking = routeBookingRepository.save(booking);
 
         log.info("Trip started for booking {}", bookingId);
+
+        // Reload match from DB to ensure we have all fields including createdAt
+        match = matchRepository.findById(match.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Match not found after creation"));
+
+        // Publish match to Supabase to trigger realtime updates for passenger
+        // This will allow passenger's listener in Home.js to receive the match and navigate to maps
+        log.info("🚀 Attempting to publish match {} to Supabase (status: {})", match.getId(), match.getStatus());
+        
+        if (supabaseRealtimeService == null) {
+            log.error("❌ SupabaseRealtimeService is NULL! Match {} will NOT be published to Supabase. Check Supabase configuration.", match.getId());
+        } else {
+            log.info("✅ SupabaseRealtimeService is available, proceeding with publish...");
+            
+            try {
+                Map<String, Object> matchData = new HashMap<>();
+                matchData.put("id", match.getId());
+                matchData.put("passenger_id", match.getPassenger().getId());
+                if (match.getDriver() != null) {
+                    matchData.put("driver_id", match.getDriver().getId());
+                } else {
+                    log.warn("⚠️ Match {} has no driver!", match.getId());
+                }
+                matchData.put("pickup_latitude", match.getPickupLatitude());
+                matchData.put("pickup_longitude", match.getPickupLongitude());
+                matchData.put("pickup_address", match.getPickupAddress());
+                matchData.put("destination_latitude", match.getDestinationLatitude());
+                matchData.put("destination_longitude", match.getDestinationLongitude());
+                matchData.put("destination_address", match.getDestinationAddress());
+                matchData.put("status", match.getStatus().name());
+                
+                // Add matched_driver_candidates field (required for Supabase schema)
+                // For fixed route, match already has driver, so use empty array or existing value
+                if (match.getMatchedDriverCandidates() != null && !match.getMatchedDriverCandidates().isEmpty()) {
+                    matchData.put("matched_driver_candidates", match.getMatchedDriverCandidates());
+                } else {
+                    matchData.put("matched_driver_candidates", "[]");
+                }
+                
+                // Use createdAt if available, otherwise use current time
+                if (match.getCreatedAt() != null) {
+                    matchData.put("created_at", match.getCreatedAt().toString());
+                    log.debug("Using match createdAt: {}", match.getCreatedAt());
+                } else {
+                    String now = java.time.LocalDateTime.now().toString();
+                    matchData.put("created_at", now);
+                    log.warn("⚠️ Match {} has no createdAt, using current time: {}", match.getId(), now);
+                }
+                
+                log.info("📤 Calling publishMatch() for match {} to Supabase (async operation)...", match.getId());
+                log.debug("Match data to publish: {}", matchData);
+                supabaseRealtimeService.publishMatch(matchData);
+                log.info("✅ publishMatch() called for match {} (check SupabaseRealtimeService logs for actual publish result)", match.getId());
+            } catch (Exception e) {
+                log.error("❌ CRITICAL: Failed to publish match {} to Supabase: {}", match.getId(), e.getMessage(), e);
+                e.printStackTrace();
+            }
+        }
+
+        // Send notification to passenger that driver has started the trip
+        // This will trigger passenger to display maps via Supabase Realtime
+        try {
+            notificationService.sendNotification(
+                    booking.getPassenger(),
+                    "Tài xế bắt đầu chuyến đi",
+                    String.format("Tài xế đã bắt đầu chuyến đi %s. Vui lòng theo dõi trên bản đồ.", route.getRouteName()),
+                    "TRIP_STARTED",
+                    match.getId() // Use match ID so passenger can navigate to MatchedRideScreen
+            );
+            log.info("Sent TRIP_STARTED notification to passenger {} for match {}", 
+                    booking.getPassenger().getId(), match.getId());
+        } catch (Exception e) {
+            log.error("Failed to send notification to passenger: {}", e.getMessage());
+        }
 
         return routeBookingMapper.toResponse(booking);
     }
@@ -398,6 +547,15 @@ public class RouteBookingServiceImpl implements RouteBookingService {
                 booking.getPassenger(),
                 "Chuyến đi hoàn thành",
                 String.format("Chuyến đi %s đã hoàn thành", booking.getRoute().getRouteName()),
+                "RIDE_COMPLETED",
+                bookingId
+        );
+
+        // Send notification to driver
+        notificationService.sendNotification(
+                booking.getRoute().getDriver(),
+                "Chuyến đi hoàn thành",
+                String.format("Bạn đã hoàn thành chuyến đi %s", booking.getRoute().getRouteName()),
                 "RIDE_COMPLETED",
                 bookingId
         );

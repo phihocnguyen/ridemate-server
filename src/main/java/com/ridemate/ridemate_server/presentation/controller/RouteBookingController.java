@@ -130,10 +130,25 @@ public class RouteBookingController {
             @RequestHeader("Authorization") String token,
             @PathVariable Long bookingId) {
         
-        Long driverId = jwtTokenProvider.getUserIdFromToken(token.substring(7));
-        RouteBookingResponse response = routeBookingService.startTrip(bookingId, driverId);
-        
-        return ResponseEntity.ok(ApiResponse.success("Trip started successfully", response));
+        try {
+            log.error("🚀🚀🚀 RouteBookingController.startTrip CALLED for bookingId: {} 🚀🚀🚀", bookingId);
+            System.out.println("🚀🚀🚀 RouteBookingController.startTrip CALLED for bookingId: " + bookingId + " 🚀🚀🚀");
+            
+            Long driverId = jwtTokenProvider.getUserIdFromToken(token.substring(7));
+            log.error("🚀 Driver {} starting trip for booking {}", driverId, bookingId);
+            System.out.println("🚀 Driver " + driverId + " starting trip for booking " + bookingId);
+            
+            RouteBookingResponse response = routeBookingService.startTrip(bookingId, driverId);
+            
+            log.error("✅ Trip started successfully for booking {}", bookingId);
+            System.out.println("✅ Trip started successfully for booking " + bookingId);
+            return ResponseEntity.ok(ApiResponse.success("Trip started successfully", response));
+        } catch (Exception e) {
+            log.error("❌❌❌ ERROR in RouteBookingController.startTrip for bookingId {}: {}", bookingId, e.getMessage(), e);
+            System.out.println("❌❌❌ ERROR in RouteBookingController.startTrip: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @PostMapping("/{bookingId}/complete")

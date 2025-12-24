@@ -67,10 +67,18 @@ public class Match extends BaseEntity {
     @Column(columnDefinition = "JSONB")
     private String matchedDriverCandidates;
 
+    // Store route polyline (encoded polyline string from OSRM/Google Directions API)
+    // This ensures both driver and passenger use the exact same route path
+    @Column(columnDefinition = "TEXT")
+    private String routePolyline;
+
+    private LocalDateTime matchedAt;
+
     public enum MatchStatus {
         PENDING,     // No drivers available yet (queued)
         WAITING,     // Driver(s) found, waiting for acceptance
         ACCEPTED,    // Driver accepted the ride
+        DRIVER_ARRIVED, // Driver arrived at pickup location
         IN_PROGRESS, // Ride started
         COMPLETED,   // Ride finished
         CANCELLED    // Cancelled by user or driver
