@@ -14,8 +14,11 @@ import com.ridemate.ridemate_server.presentation.exception.ResourceNotFoundExcep
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.ridemate.ridemate_server.application.service.notification.NotificationService;
 
 @Service
 public class ChatServiceImpl implements ChatService {
@@ -28,6 +31,8 @@ public class ChatServiceImpl implements ChatService {
     private UserRepository userRepository;
     @Autowired
     private MessageMapper messageMapper;
+    @Autowired
+    private NotificationService notificationService;
 
     @Override
     @Transactional
@@ -59,6 +64,42 @@ public class ChatServiceImpl implements ChatService {
                 .build();
 
         message = messageRepository.save(message);
+        
+        // Notification throttling: only notify if last message was sent more than 5 minutes ago
+        Long recipientId = session.getMatch().getPassenger().getId().equals(senderId)
+                ? (session.getMatch().getDriver() != null ? session.getMatch().getDriver().getId() : null)
+                : session.getMatch().getPassenger().getId();
+        
+        if (recipientId != null) {
+            // Get last message from sender to this session
+            List<Message> recentMessages = messageRepository
+                    .findTop1BySenderIdAndSessionIdOrderByCreatedAtDesc(senderId, session.getId());
+            
+            boolean shouldNotify = true;
+            if (!recentMessages.isEmpty()) {
+                Message lastMessage = recentMessages.get(0);
+                long minutesSinceLastMessage = ChronoUnit.MINUTES.between(
+                        lastMessage.getCreatedAt(), 
+                        LocalDateTime.now()
+                );
+                // Only notify if last message was sent more than 5 minutes ago
+                shouldNotify = minutesSinceLastMessage >= 5;
+            }
+            
+            if (shouldNotify) {
+                User recipient = userRepository.findById(recipientId).orElse(null);
+                if (recipient != null) {
+                    notificationService.sendNotification(
+                            recipient,
+                            "Tin nhắn mới từ " + sender.getFullName(),
+                            request.getContent(),
+                            "CHAT_MESSAGE",
+                            session.getId()
+                    );
+                }
+            }
+        }
+        
         return messageMapper.toResponse(message);
     }
 

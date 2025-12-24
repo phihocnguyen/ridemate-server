@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -27,4 +28,7 @@ public class ReportManagementDto {
     private String evidenceUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // Session messages for admin review
+    private List<SessionMessageDto> sessionMessages;
 }

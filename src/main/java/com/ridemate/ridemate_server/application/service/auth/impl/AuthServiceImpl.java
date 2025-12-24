@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -47,6 +48,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private com.ridemate.ridemate_server.application.service.driver.DriverLocationService driverLocationService;
+    
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
 
     @Value("${STREAM_API_KEY}")
     private String streamApiKey;
@@ -147,33 +151,68 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid phone number or password"));
+                .orElseThrow(() -> new IllegalArgumentException("Số điện thoại hoặc mật khẩu không đúng"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("Invalid phone number or password");
+            throw new IllegalArgumentException("Số điện thoại hoặc mật khẩu không đúng");
+        }
+        
+        // ===== CHECK ACCOUNT LOCK STATUS =====
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Auto-unlock if lock period has expired
+        if (user.getAccountLockedUntil() != null && now.isAfter(user.getAccountLockedUntil())) {
+            user.setAccountLockedUntil(null);
+            user.setIsActive(true);
+            userRepository.save(user);
+            log.info("Account {} auto-unlocked (lock period expired)", user.getId());
+        }
+        
+        // Check if account is currently locked
+        if (!user.getIsActive() || (user.getAccountLockedUntil() != null && now.isBefore(user.getAccountLockedUntil()))) {
+            String lockMessage = "Tài khoản của bạn đã bị khóa";
+            if (user.getAccountLockedUntil() != null) {
+                // Return ISO format, frontend will format it
+                lockMessage += " đến " + user.getAccountLockedUntil().toString();
+            }
+            lockMessage += ". Vui lòng liên hệ hỗ trợ để được hỗ trợ.";
+            throw new IllegalArgumentException(lockMessage);
         }
 
         // ===== AUTO SET DRIVER TO ONLINE ON LOGIN =====
         if (user.getUserType() == User.UserType.DRIVER) {
-            // Update driver status to ONLINE
-            user.setDriverStatus(User.DriverStatus.ONLINE);
+            // Calculate values without modifying the entity
+            Double latitude = request.getCurrentLatitude();
+            Double longitude = request.getCurrentLongitude();
             
-            // Set/update location if provided in request, or use existing
-            if (request.getCurrentLatitude() != null && request.getCurrentLongitude() != null) {
-                user.setCurrentLatitude(request.getCurrentLatitude());
-                user.setCurrentLongitude(request.getCurrentLongitude());
-            } else if (user.getCurrentLatitude() == null) {
-                // Default to Ho Chi Minh center if no location ever set
-                user.setCurrentLatitude(10.7769);
-                user.setCurrentLongitude(106.7009);
+            if (latitude == null || longitude == null) {
+                // Use existing location or default
+                latitude = user.getCurrentLatitude() != null ? user.getCurrentLatitude() : 10.7769;
+                longitude = user.getCurrentLongitude() != null ? user.getCurrentLongitude() : 106.7009;
             }
             
-            user.setLastLocationUpdate(java.time.LocalDateTime.now());
             log.info("Driver {} auto set to ONLINE on login at location ({}, {})", 
-                    user.getId(), user.getCurrentLatitude(), user.getCurrentLongitude());
+                    user.getId(), latitude, longitude);
+            
+            // Clear session to prevent any entity flush
+            entityManager.clear();
+            
+            // Use native SQL to update only specific fields
+            userRepository.updateDriverStatusAndLocation(
+                user.getId(),
+                "ONLINE",  // Pass as String for native query
+                latitude,
+                longitude,
+                now
+            );
+            
+            // Update the entity object for response (it's detached so won't trigger save)
+            user.setDriverStatus(User.DriverStatus.ONLINE);
+            user.setCurrentLatitude(latitude);
+            user.setCurrentLongitude(longitude);
+            user.setLastLocationUpdate(now);
         }
 
-        user = userRepository.save(user);
 
         if (user.getUserType() == User.UserType.DRIVER && user.getDriverStatus() == User.DriverStatus.ONLINE) {
             try {
