@@ -17,39 +17,25 @@ import com.ridemate.ridemate_server.application.service.admin.AdminService;
 import com.ridemate.ridemate_server.application.service.mission.MissionService;
 import com.ridemate.ridemate_server.application.service.user.impl.UserSyncService;
 import com.ridemate.ridemate_server.domain.entity.Match.MatchStatus;
-import com.ridemate.ridemate_server.domain.entity.Mission;
 import com.ridemate.ridemate_server.presentation.dto.admin.*;
-import com.ridemate.ridemate_server.presentation.dto.mission.CreateMissionRequest;
-import com.ridemate.ridemate_server.presentation.dto.mission.MissionDto;
-import com.ridemate.ridemate_server.presentation.dto.mission.UpdateMissionRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
-
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -68,15 +54,48 @@ public class AdminController {
     private final MissionService missionService;
     private final UserSyncService userSyncService;
 
+    @GetMapping("/trips")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(summary = "Get trips list", description = "Get paginated list of trips with filters")
+    public ResponseEntity<Page<TripManagementDto>> getAllTrips(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status
+    ) {
+        Sort.Direction direction = sortDirection.equalsIgnoreCase("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        MatchStatus matchStatus = null;
+        if (status != null && !status.isEmpty() && !status.equalsIgnoreCase("all")) {
+            try {
+                matchStatus = MatchStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                matchStatus = null;
+            }
+        }
+
+        return ResponseEntity.ok(adminService.getAllTrips(matchStatus, search, pageable));
+    }
+
     @GetMapping("/dashboard/stats")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa: dùng hasAuthority
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get dashboard statistics", description = "Get overall statistics for admin dashboard")
     public ResponseEntity<AdminDashboardStatsDto> getDashboardStats() {
         return ResponseEntity.ok(adminService.getDashboardStats());
     }
 
+    @GetMapping("/dashboard/stats/trips")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(summary = "Get trip statistics", description = "Get specific trip statistics for dashboard")
+    public ResponseEntity<TripStatsDto> getTripStats() {
+        return ResponseEntity.ok(adminService.getTripStats());
+    }
+
     @GetMapping("/dashboard/charts")
-    @PreAuthorize("hasAuthority('ADMIN')") // <--- Đã sửa
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get chart data", description = "Get chart data for various metrics (users, sessions, messages, vouchers, revenue)")
     public ResponseEntity<AdminChartDataDto> getChartData(
             @Parameter(description = "Chart type: users, sessions, messages, vouchers, revenue")
