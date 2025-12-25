@@ -2,6 +2,7 @@ package com.ridemate.ridemate_server.application.service.cloudinary;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class CloudinaryService {
 
@@ -21,15 +23,46 @@ public class CloudinaryService {
             throw new IllegalArgumentException("File cannot be null or empty");
         }
 
+        // Check if cloudinary is properly configured
+        if (cloudinary == null) {
+            log.error("❌ Cloudinary bean is null! Check CloudinaryConfig.");
+            throw new IllegalStateException("Cloudinary service is not properly configured");
+        }
+
+        log.info("📤 Starting Cloudinary upload - folder: {}, size: {} bytes", folder, file.getSize());
+
+        // Start with simple params to avoid signature issues
         Map<String, Object> params = new HashMap<>();
         params.put("folder", folder);
         params.put("resource_type", "image");
         params.put("overwrite", true);
-        // Use transformation as string instead of Transformation object to avoid signature issues
-        params.put("transformation", "c_limit,h_1000,q_auto,w_1000");
 
-        Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
-        return (String) uploadResult.get("secure_url");
+        try {
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
+            String secureUrl = (String) uploadResult.get("secure_url");
+            
+            log.info("✅ Cloudinary upload successful: {}", secureUrl);
+            return secureUrl;
+        } catch (Exception e) {
+            log.error("❌ Cloudinary upload failed: {}", e.getMessage(), e);
+            
+            // Check if it's a signature error
+            if (e.getMessage() != null && e.getMessage().contains("Invalid Signature")) {
+                log.error("   🔐 Signature error detected!");
+                log.error("   Please verify:");
+                log.error("   1. CLOUDINARY_API_SECRET in .env matches Cloudinary dashboard");
+                log.error("   2. No extra spaces or special characters in credentials");
+                log.error("   3. API Secret is the full secret key (not truncated)");
+            }
+            
+            // Check if it's a network/connection error
+            if (e.getMessage() != null && (e.getMessage().contains("timeout") || e.getMessage().contains("connection"))) {
+                log.error("   🌐 Network error - check internet connection");
+            }
+            
+            // Re-throw exception instead of returning mock URL
+            throw new IOException("Cloudinary upload failed: " + e.getMessage(), e);
+        }
     }
 
     public void deleteImage(String imageUrl) throws IOException {

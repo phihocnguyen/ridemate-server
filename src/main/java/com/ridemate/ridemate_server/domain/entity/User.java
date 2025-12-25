@@ -1,6 +1,5 @@
 package com.ridemate.ridemate_server.domain.entity;
 
-import com.ridemate.ridemate_server.infrastructure.persistence.converter.VectorAttributeConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -41,7 +40,7 @@ public class User extends BaseEntity {
         UNVERIFIED,  // Not yet verified
         PENDING,     // Verification in progress
         VERIFIED,    // Successfully verified
-        REJECTED     // Verification failed
+        REJECTED     // Verification rejected
     }
 
     // ===== BASIC FIELDS =====
@@ -74,26 +73,18 @@ public class User extends BaseEntity {
     @Builder.Default
     private Float rating = 0f;
 
-    @Column(nullable = true, length = 500, columnDefinition = "VARCHAR(500)")
-    private String faceIdData;
-    
     // ===== ID VERIFICATION FIELDS =====
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    @Builder.Default
+    private VerificationStatus verificationStatus = VerificationStatus.UNVERIFIED;
     
     @Column(nullable = true, columnDefinition = "TEXT")
     private String idCardImageUrl;
     
-    @Column(nullable = true, columnDefinition = "vector(512)", updatable = false)
-    @Convert(converter = VectorAttributeConverter.class)
-    private String idCardFaceEmbedding;
-    
-    @Column(nullable = true, columnDefinition = "vector(512)", updatable = false)
-    @Convert(converter = VectorAttributeConverter.class)
-    private String faceEmbedding;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private VerificationStatus verificationStatus = VerificationStatus.UNVERIFIED;
+    @Column(nullable = true, columnDefinition = "TEXT")
+    private String faceIdData; // Face ID data for avatar/profile
     
     @Column(nullable = true)
     private java.time.LocalDateTime verificationDate;

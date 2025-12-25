@@ -23,6 +23,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.github.cdimascio.dotenv.Dotenv;
+import jakarta.annotation.PostConstruct;
 
 @Slf4j
 @Service
@@ -52,11 +54,45 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private jakarta.persistence.EntityManager entityManager;
 
-    @Value("${STREAM_API_KEY:}")
+    @Value("${stream.api.key:${STREAM_API_KEY:}}")
     private String streamApiKey;
 
-    @Value("${STREAM_API_SECRET:}")
+    @Value("${stream.api.secret:${STREAM_API_SECRET:}}")
     private String streamApiSecret;
+    
+    @PostConstruct
+    private void loadStreamCredentials() {
+        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+        
+        // Load from .env file first, then fallback to @Value
+        String envApiKey = dotenv.get("STREAM_API_KEY");
+        String envApiSecret = dotenv.get("STREAM_API_SECRET");
+        
+        // Also check system environment variables
+        if (envApiKey == null) envApiKey = System.getenv("STREAM_API_KEY");
+        if (envApiSecret == null) envApiSecret = System.getenv("STREAM_API_SECRET");
+        
+        // Use .env/system env if available, otherwise use @Value
+        if (envApiKey != null && !envApiKey.isEmpty()) {
+            streamApiKey = envApiKey;
+        }
+        if (envApiSecret != null && !envApiSecret.isEmpty()) {
+            streamApiSecret = envApiSecret;
+        }
+        
+        // Log status (mask sensitive data)
+        log.info("🔧 Stream Chat Config Loading:");
+        log.info("   - API Key: {}", streamApiKey != null && !streamApiKey.isEmpty() 
+            ? streamApiKey.substring(0, Math.min(4, streamApiKey.length())) + "***" : "null");
+        log.info("   - API Secret: {}", streamApiSecret != null && !streamApiSecret.isEmpty() 
+            ? streamApiSecret.substring(0, Math.min(4, streamApiSecret.length())) + "***" : "null");
+        
+        if (streamApiKey == null || streamApiKey.isEmpty() || 
+            streamApiSecret == null || streamApiSecret.isEmpty()) {
+            log.warn("⚠️ WARNING: Stream Chat credentials are missing! Chat tokens will be invalid.");
+            log.warn("   Please set STREAM_API_KEY and STREAM_API_SECRET in .env file");
+        }
+    }
 
     @Override
     @Transactional
@@ -92,7 +128,7 @@ public class AuthServiceImpl implements AuthService {
                 .phoneNumber(request.getPhoneNumber())
                 .email(request.getEmail())
                 .profilePictureUrl(request.getProfilePictureUrl())
-                .faceIdData(request.getFaceIdData())
+
                 .currentLatitude(request.getCurrentLatitude())
                 .currentLongitude(request.getCurrentLongitude())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
@@ -127,7 +163,7 @@ public class AuthServiceImpl implements AuthService {
                 .phoneNumber(request.getPhoneNumber())
                 .email(request.getEmail())
                 .profilePictureUrl(request.getProfilePictureUrl())
-                .faceIdData(request.getFaceIdData())
+
                 .currentLatitude(request.getCurrentLatitude())
                 .currentLongitude(request.getCurrentLongitude())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
@@ -284,12 +320,13 @@ public class AuthServiceImpl implements AuthService {
         otpNotificationService.sendOtpViaSms(request.getPhoneNumber(), otpCode, request.getPurpose());
         log.info("OTP sent to {} for purpose: {}", request.getPhoneNumber(), request.getPurpose());
         
-        // Always return response without OTP code (security - OTP only sent via SMS)
+        // Return response with OTP code for easier testing/development
         return OtpResponse.builder()
                 .success(true)
                 .message("OTP sent to " + request.getPhoneNumber() + " via SMS")
                 .expiryTime(expiryTime)
                 .identifier(request.getPhoneNumber())
+                .otpCode(otpCode)
                 .build();
     }
 
@@ -394,8 +431,15 @@ public class AuthServiceImpl implements AuthService {
             
             SecretKey key = Keys.hmacShaKeyFor(streamApiSecret.getBytes(StandardCharsets.UTF_8));
             
+            // Stream Chat requires token with expiration (24 hours)
+            long expirationTime = System.currentTimeMillis() + (24 * 60 * 60 * 1000); // 24 hours
+            java.util.Date expirationDate = new java.util.Date(expirationTime);
+            java.util.Date now = new java.util.Date();
+            
             return Jwts.builder()
                     .claim("user_id", userId.toString())
+                    .issuedAt(now)
+                    .expiration(expirationDate)
                     .signWith(key, Jwts.SIG.HS256) 
                     .compact();
         } catch (Exception e) {

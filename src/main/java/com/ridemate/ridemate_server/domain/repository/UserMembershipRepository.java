@@ -11,7 +11,7 @@ import java.util.Optional;
 public interface UserMembershipRepository extends JpaRepository<UserMembership, Long> {
     List<UserMembership> findByUserId(Long userId);
     List<UserMembership> findByUserIdAndStatus(Long userId, UserMembership.MembershipStatus status);
-    Optional<UserMembership> findByUserIdAndStatusAndEndDateAfter(Long userId, UserMembership.MembershipStatus status, java.time.LocalDateTime date);
+    List<UserMembership> findByUserIdAndStatusAndEndDateAfter(Long userId, UserMembership.MembershipStatus status, java.time.LocalDateTime date);
     Optional<UserMembership> findByPaymentId(Long paymentId);
 }
 

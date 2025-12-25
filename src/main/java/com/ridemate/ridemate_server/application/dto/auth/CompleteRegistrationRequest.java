@@ -38,8 +38,7 @@ public class CompleteRegistrationRequest {
     @Schema(description = "User's profile picture URL", example = "https://ociacc.com/wp-content/uploads/2019/03/blank-profile-picture-973460_1280.png")
     private String profilePictureUrl;
 
-    @Schema(description = "Face ID data for biometric authentication (base64 encoded)", example = "base64_face_data")
-    private String faceIdData;
+
 
     @Schema(description = "Current latitude for location tracking", example = "20.9852")
     private Double currentLatitude;

@@ -3,7 +3,6 @@ package com.ridemate.ridemate_server.presentation.controller;
 import com.ridemate.ridemate_server.application.dto.report.CreateReportRequest;
 import com.ridemate.ridemate_server.application.dto.report.ReportResponse;
 import com.ridemate.ridemate_server.application.service.report.ReportService;
-import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -37,11 +36,7 @@ public class ReportController {
     })
     public ResponseEntity<ApiResponse<ReportResponse>> createReport(
             @Valid @RequestBody CreateReportRequest request,
-            @AuthenticationPrincipal User currentUser) {
-        
-        // Lấy ID từ User Principal (thay đổi tùy theo config security của bạn, ở đây giả sử currentUser là User entity)
-        // Nếu config trả về Long thì sửa thành @AuthenticationPrincipal Long userId
-        Long userId = currentUser.getId(); 
+            @AuthenticationPrincipal Long userId) {
         
         ReportResponse response = reportService.createReport(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -51,9 +46,8 @@ public class ReportController {
     @GetMapping("/my")
     @Operation(summary = "Get my reports", description = "Get history of reports submitted by current user")
     public ResponseEntity<ApiResponse<List<ReportResponse>>> getMyReports(
-            @AuthenticationPrincipal User currentUser) {
+            @AuthenticationPrincipal Long userId) {
         
-        Long userId = currentUser.getId();
         List<ReportResponse> response = reportService.getMyReports(userId);
         return ResponseEntity.ok(ApiResponse.success("Reports retrieved successfully", response));
     }

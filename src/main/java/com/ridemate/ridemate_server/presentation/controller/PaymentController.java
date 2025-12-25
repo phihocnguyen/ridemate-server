@@ -117,10 +117,11 @@ public class PaymentController {
                 .body(ApiResponse.error(400, "User ID is required. Please ensure you are authenticated."));
         }
         
-        UserMembership activeMembership = userMembershipRepository
+        List<UserMembership> activeMemberships = userMembershipRepository
                 .findByUserIdAndStatusAndEndDateAfter(userId, UserMembership.MembershipStatus.ACTIVE, 
-                    java.time.LocalDateTime.now())
-                .orElse(null);
+                    java.time.LocalDateTime.now());
+        
+        UserMembership activeMembership = activeMemberships.isEmpty() ? null : activeMemberships.get(0);
         
         Map<String, Object> result = new HashMap<>();
         if (activeMembership != null && activeMembership.isActive()) {

@@ -127,7 +127,13 @@
 		<dependency>
 			<groupId>com.twilio.sdk</groupId>
 			<artifactId>twilio</artifactId>
-			<version>9.14.1</version>
+			<version>10.1.0</version>
+		</dependency>
+		<!-- Explicit HttpClient to fix conflict -->
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.5.14</version>
 		</dependency>
 
 		<!-- Stripe for Payment -->

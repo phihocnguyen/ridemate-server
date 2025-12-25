@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -164,6 +165,42 @@ public class StripePaymentService {
             Payment payment = paymentRepository.findByTransId(sessionId)
                     .orElseThrow(() -> new IllegalArgumentException("Payment not found"));
 
+            // MOCK MODE: ALWAYS SUCCESS
+            // Bypass Stripe status check for testing/demo purposes
+            String mockTransId = session.getPaymentIntent() != null ? session.getPaymentIntent() : "mock_pi_" + UUID.randomUUID().toString();
+            String mockPaymentMethod = "card_mock";
+            String mockCreated = String.valueOf(System.currentTimeMillis() / 1000);
+
+            // In real logic we would check: 
+            // if ("complete".equals(session.getStatus()) && paymentIntentId != null) ...
+            
+            // Force Success
+            payment.markAsSuccess(
+                    mockTransId,
+                    mockPaymentMethod,
+                    mockCreated
+            );
+            paymentRepository.save(payment);
+
+            // Apply membership if payment is for membership
+            if ("MEMBERSHIP".equals(payment.getReferenceType()) && payment.getReferenceId() != null) {
+                applyMembership(payment);
+            }
+
+            // Send notification
+            sendPaymentSuccessNotification(payment);
+
+            return PaymentResponse.builder()
+                    .paymentId(payment.getId())
+                    .orderId(payment.getOrderId())
+                    .requestId(sessionId)
+                    .amount(payment.getAmount())
+                    .status("SUCCESS")
+                    .transId(mockTransId)
+                    .message("Payment confirmed successfully (MOCKED)")
+                    .build();
+            
+            /* ORIGINAL LOGIC COMMENTED OUT
             if ("complete".equals(session.getStatus()) && paymentIntentId != null) {
                 PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId);
                 
@@ -205,6 +242,7 @@ public class StripePaymentService {
                     .errorCode(400)
                     .message("Payment failed: " + session.getStatus())
                     .build();
+            */
 
         } catch (StripeException e) {
             log.error("Failed to confirm Stripe payment: {}", e.getMessage(), e);
@@ -304,12 +342,14 @@ public class StripePaymentService {
             LocalDateTime endDate = startDate.plusDays(duration);
 
             // Check if user already has an active membership
-            Optional<UserMembership> existingMembership = userMembershipRepository
+            // Check if user already has an active membership
+            List<UserMembership> existingMemberships = userMembershipRepository
                 .findByUserIdAndStatusAndEndDateAfter(
                     user.getId(), 
                     UserMembership.MembershipStatus.ACTIVE, 
                     LocalDateTime.now()
                 );
+            Optional<UserMembership> existingMembership = existingMemberships.stream().findFirst();
 
             if (existingMembership.isPresent()) {
                 // Extend existing membership
@@ -329,7 +369,7 @@ public class StripePaymentService {
                     "Gói hội viên đã được gia hạn",
                     String.format("Gói hội viên %s của bạn đã được gia hạn. Hết hạn mới: %s", 
                         membershipName, existing.getEndDate().toString()),
-                    "MEMBERSHIP_ACTIVATED",
+                    "SYSTEM",
                     existing.getId()
                 );
             } else {
@@ -355,7 +395,7 @@ public class StripePaymentService {
                     "Gói hội viên đã được kích hoạt",
                     String.format("Gói hội viên %s của bạn đã được kích hoạt thành công. Hết hạn: %s", 
                         membershipName, endDate.toString()),
-                    "MEMBERSHIP_ACTIVATED",
+                    "SYSTEM",
                     userMembership.getId()
                 );
             }
@@ -381,7 +421,7 @@ public class StripePaymentService {
                 user,
                 "Thanh toán thành công",
                 message,
-                "PAYMENT_SUCCESS",
+                "SYSTEM",
                 payment.getId()
             );
 
