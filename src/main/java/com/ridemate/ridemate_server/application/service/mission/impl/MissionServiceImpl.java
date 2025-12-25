@@ -4,9 +4,13 @@ import com.ridemate.ridemate_server.application.service.mission.MissionService;
 import com.ridemate.ridemate_server.domain.entity.Mission;
 import com.ridemate.ridemate_server.domain.entity.User;
 import com.ridemate.ridemate_server.domain.entity.UserMission;
+import com.ridemate.ridemate_server.domain.entity.UserVoucher;
+import com.ridemate.ridemate_server.domain.entity.Voucher;
 import com.ridemate.ridemate_server.domain.repository.MissionRepository;
 import com.ridemate.ridemate_server.domain.repository.UserMissionRepository;
 import com.ridemate.ridemate_server.domain.repository.UserRepository;
+import com.ridemate.ridemate_server.domain.repository.UserVoucherRepository;
+import com.ridemate.ridemate_server.domain.repository.VoucherRepository;
 import com.ridemate.ridemate_server.presentation.dto.mission.CreateMissionRequest;
 import com.ridemate.ridemate_server.presentation.dto.mission.MissionDto;
 import com.ridemate.ridemate_server.presentation.dto.mission.UpdateMissionRequest;
@@ -29,6 +33,8 @@ public class MissionServiceImpl implements MissionService {
     private final MissionRepository missionRepository;
     private final UserMissionRepository userMissionRepository;
     private final UserRepository userRepository;
+    private final VoucherRepository voucherRepository;
+    private final UserVoucherRepository userVoucherRepository;
     
     @Override
     @Transactional
@@ -226,8 +232,42 @@ public class MissionServiceImpl implements MissionService {
         
         userMission.claimReward();
         
-        // TODO: Add reward points to user's account
-        // TODO: If rewardVoucherId is present, create UserVoucher
+        // Add reward points to user's account
+        User user = userMission.getUser();
+        Mission mission = userMission.getMission();
+        int rewardPoints = mission.getRewardPoints() != null ? mission.getRewardPoints() : 0;
+        
+        if (rewardPoints > 0) {
+            int currentCoins = user.getCoins() != null ? user.getCoins() : 0;
+            user.setCoins(currentCoins + rewardPoints);
+            userRepository.save(user);
+        }
+        
+        // If rewardVoucherId is present, create UserVoucher
+        if (mission.getRewardVoucherId() != null) {
+            Voucher voucher = voucherRepository.findById(mission.getRewardVoucherId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Voucher not found with id: " + mission.getRewardVoucherId()));
+            
+            // Check if voucher is active and not expired
+            if (!voucher.getIsActive()) {
+                throw new IllegalStateException("Voucher is not active");
+            }
+            
+            if (voucher.getExpiryDate() != null && voucher.getExpiryDate().isBefore(LocalDateTime.now())) {
+                throw new IllegalStateException("Voucher has expired");
+            }
+            
+            // Create UserVoucher
+            UserVoucher userVoucher = UserVoucher.builder()
+                    .user(user)
+                    .voucher(voucher)
+                    .status(UserVoucher.UserVoucherStatus.UNUSED)
+                    .acquiredDate(LocalDateTime.now())
+                    .build();
+            
+            userVoucherRepository.save(userVoucher);
+        }
         
         userMission = userMissionRepository.save(userMission);
         return convertToUserMissionDto(userMission);

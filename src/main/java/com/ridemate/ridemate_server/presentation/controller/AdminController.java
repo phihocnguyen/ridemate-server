@@ -163,7 +163,7 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/sync-stats")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Sync user ride statistics", description = "Sync totalRidesCompleted with actual COMPLETED matches")
     public ResponseEntity<Map<String, String>> syncUserStats(@PathVariable Long userId) {
         userSyncService.syncUserRideStats(userId);
@@ -171,7 +171,7 @@ public class AdminController {
     }
 
     @PostMapping("/users/sync-all-stats")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Sync all users' ride statistics", description = "Sync totalRidesCompleted for all users (use with caution)")
     public ResponseEntity<Map<String, String>> syncAllUsersStats() {
         userSyncService.syncAllUsersRideStats();

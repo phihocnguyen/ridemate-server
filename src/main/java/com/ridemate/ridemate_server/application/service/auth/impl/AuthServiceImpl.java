@@ -52,10 +52,10 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private jakarta.persistence.EntityManager entityManager;
 
-    @Value("${STREAM_API_KEY}")
+    @Value("${STREAM_API_KEY:}")
     private String streamApiKey;
 
-    @Value("${STREAM_API_SECRET}")
+    @Value("${STREAM_API_SECRET:}")
     private String streamApiSecret;
 
     @Override
@@ -280,12 +280,14 @@ public class AuthServiceImpl implements AuthService {
 
         otpRepository.save(otp);
 
+        // Send OTP via SMS (real SMS or sandbox logging)
         otpNotificationService.sendOtpViaSms(request.getPhoneNumber(), otpCode, request.getPurpose());
         log.info("OTP sent to {} for purpose: {}", request.getPhoneNumber(), request.getPurpose());
         
+        // Always return response without OTP code (security - OTP only sent via SMS)
         return OtpResponse.builder()
                 .success(true)
-                .message("OTP sent to " + request.getPhoneNumber())
+                .message("OTP sent to " + request.getPhoneNumber() + " via SMS")
                 .expiryTime(expiryTime)
                 .identifier(request.getPhoneNumber())
                 .build();

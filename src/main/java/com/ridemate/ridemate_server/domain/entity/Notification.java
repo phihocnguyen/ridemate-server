@@ -44,6 +44,8 @@ public class Notification extends BaseEntity {
         TRIP_STARTED,
         TRIP_ENDED,
         DRIVER_ARRIVED,
-        REFUND_PROCESSED
+        REFUND_PROCESSED,
+        PAYMENT_SUCCESS,
+        MEMBERSHIP_ACTIVATED
     }
 }

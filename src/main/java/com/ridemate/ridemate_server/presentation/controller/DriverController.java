@@ -27,7 +27,7 @@ public class DriverController {
     private final PersonalRideService personalRideService;
 
     @PostMapping("/personal-ride")
-    @PreAuthorize("hasRole('DRIVER')")
+    @PreAuthorize("hasAuthority('DRIVER')")
     @Operation(
         summary = "Start a personal ride",
         description = "Driver starts a ride for themselves or instant pickup. Creates a match and session immediately."

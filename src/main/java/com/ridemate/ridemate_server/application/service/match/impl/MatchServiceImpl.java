@@ -33,8 +33,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -179,14 +182,67 @@ public class MatchServiceImpl implements MatchService {
                         dc.getEstimatedArrivalTime(), dc.getMatchScore());
             }
             
+            
             // ===== SEND NOTIFICATIONS TO DRIVERS =====
             log.info("Sending notifications to {} drivers for match {}", candidates.size(), match.getId());
             notificationService.notifyDriversOfNewMatch(match, candidates);
+            
+            // ===== PUBLISH MATCH TO SUPABASE FOR REALTIME DRIVER MODAL =====
+            try {
+                if (supabaseRealtimeService == null) {
+                    log.warn("⚠️ SupabaseRealtimeService is null, match {} will not be published to Supabase", match.getId());
+                } else {
+                    log.info("📤 Publishing match {} to Supabase (WAITING) for driver realtime modal...", match.getId());
+                    
+                    // Reload match to get updated candidates from DB
+                    Match reloadedMatch = matchRepository.findById(match.getId())
+                            .orElseThrow(() -> new ResourceNotFoundException("Match not found"));
+                    
+                    Map<String, Object> matchData = new HashMap<>();
+                    matchData.put("id", reloadedMatch.getId());
+                    matchData.put("passenger_id", reloadedMatch.getPassenger().getId());
+                    matchData.put("pickup_latitude", reloadedMatch.getPickupLatitude());
+                    matchData.put("pickup_longitude", reloadedMatch.getPickupLongitude());
+                    matchData.put("pickup_address", reloadedMatch.getPickupAddress());
+                    matchData.put("destination_latitude", reloadedMatch.getDestinationLatitude());
+                    matchData.put("destination_longitude", reloadedMatch.getDestinationLongitude());
+                    matchData.put("destination_address", reloadedMatch.getDestinationAddress());
+                    matchData.put("status", reloadedMatch.getStatus().name());
+                    
+                    // Add matched_driver_candidates from DB (JSONB string)
+                    if (reloadedMatch.getMatchedDriverCandidates() != null && !reloadedMatch.getMatchedDriverCandidates().isEmpty()) {
+                        matchData.put("matched_driver_candidates", reloadedMatch.getMatchedDriverCandidates());
+                    } else {
+                        // Fallback: serialize candidates list if not in DB yet
+                        try {
+                            ObjectMapper mapper = new ObjectMapper();
+                            String candidatesJson = mapper.writeValueAsString(candidates);
+                            matchData.put("matched_driver_candidates", candidatesJson);
+                        } catch (Exception e) {
+                            log.warn("Failed to serialize candidates: {}", e.getMessage());
+                            matchData.put("matched_driver_candidates", "[]");
+                        }
+                    }
+                    
+                    if (reloadedMatch.getCreatedAt() != null) {
+                        matchData.put("created_at", reloadedMatch.getCreatedAt().toString());
+                    } else {
+                        matchData.put("created_at", java.time.LocalDateTime.now().toString());
+                    }
+                    
+                    log.debug("Match data prepared for Supabase: {}", matchData);
+                    supabaseRealtimeService.publishMatch(matchData);
+                    log.info("✅ Published match {} to Supabase - Drivers should receive realtime modal", match.getId());
+                }
+            } catch (Exception e) {
+                log.error("❌ Failed to publish match {} to Supabase: {}", match.getId(), e.getMessage(), e);
+            }
             
             // TODO: In next phase, implement:
             // 1. Send push notifications to top 3-5 drivers
             // 2. Set up timeout mechanism (15-30 seconds per driver)
             // 3. Handle driver accept/reject responses
+
             // 4. Fallback to next driver if timeout or reject
         }
         
@@ -266,11 +322,42 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchResponse> getMyHistory(Long userId) {
-        List<Match> matches = matchRepository.findByPassengerId(userId);
-        List<Match> driverMatches = matchRepository.findByDriverId(userId);
-        matches.addAll(driverMatches);
+        // Only get COMPLETED and CANCELLED matches for history
+        List<Match.MatchStatus> historyStatuses = List.of(
+            Match.MatchStatus.COMPLETED,
+            Match.MatchStatus.CANCELLED
+        );
         
-        return matches.stream()
+        List<Match> passengerMatches = matchRepository.findByPassengerIdAndStatusIn(userId, historyStatuses);
+        List<Match> driverMatches = matchRepository.findByDriverIdAndStatusIn(userId, historyStatuses);
+        
+        // Combine and remove duplicates by ID (in case user is both passenger and driver)
+        Set<Long> seenIds = new LinkedHashSet<>();
+        List<Match> allMatches = new ArrayList<>();
+        
+        for (Match match : passengerMatches) {
+            if (match.getId() != null && !seenIds.contains(match.getId())) {
+                seenIds.add(match.getId());
+                allMatches.add(match);
+            }
+        }
+        
+        for (Match match : driverMatches) {
+            if (match.getId() != null && !seenIds.contains(match.getId())) {
+                seenIds.add(match.getId());
+                allMatches.add(match);
+            }
+        }
+        
+        // Sort by created date descending (newest first)
+        allMatches.sort((a, b) -> {
+            if (a.getCreatedAt() == null && b.getCreatedAt() == null) return 0;
+            if (a.getCreatedAt() == null) return 1;
+            if (b.getCreatedAt() == null) return -1;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+        
+        return allMatches.stream()
                 .map(matchMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -400,6 +487,48 @@ public class MatchServiceImpl implements MatchService {
             notificationService.sendNotification(match.getPassenger(), title, body, "MATCH_ACCEPTED", match.getId());
         } catch (Exception e) {
             log.error("Failed to send MATCH_ACCEPTED notification: {}", e.getMessage());
+        }
+
+        // ===== PUBLISH MATCH TO SUPABASE FOR REALTIME UPDATES =====
+        try {
+            if (supabaseRealtimeService == null) {
+                log.warn("⚠️ SupabaseRealtimeService is null, match {} will not be published to Supabase", match.getId());
+            } else {
+                log.info("📤 Publishing match {} to Supabase (ACCEPTED)...", match.getId());
+                
+                Map<String, Object> matchData = new HashMap<>();
+                matchData.put("id", match.getId());
+                matchData.put("passenger_id", match.getPassenger().getId());
+                if (match.getDriver() != null) {
+                    matchData.put("driver_id", match.getDriver().getId());
+                }
+                matchData.put("pickup_latitude", match.getPickupLatitude());
+                matchData.put("pickup_longitude", match.getPickupLongitude());
+                matchData.put("pickup_address", match.getPickupAddress());
+                matchData.put("destination_latitude", match.getDestinationLatitude());
+                matchData.put("destination_longitude", match.getDestinationLongitude());
+                matchData.put("destination_address", match.getDestinationAddress());
+                matchData.put("status", match.getStatus().name());
+                
+                // Add matched_driver_candidates field (required for Supabase schema)
+                if (match.getMatchedDriverCandidates() != null && !match.getMatchedDriverCandidates().isEmpty()) {
+                    matchData.put("matched_driver_candidates", match.getMatchedDriverCandidates());
+                } else {
+                    matchData.put("matched_driver_candidates", "[]");
+                }
+                
+                if (match.getCreatedAt() != null) {
+                    matchData.put("created_at", match.getCreatedAt().toString());
+                } else {
+                    matchData.put("created_at", java.time.LocalDateTime.now().toString());
+                }
+                
+                log.debug("Match data prepared: {}", matchData);
+                supabaseRealtimeService.publishMatch(matchData);
+                log.info("✅ Published match {} to Supabase for realtime passenger notification (ACCEPTED)", match.getId());
+            }
+        } catch (Exception e) {
+            log.error("❌ Failed to publish match {} to Supabase: {}", match.getId(), e.getMessage(), e);
         }
 
         return response;

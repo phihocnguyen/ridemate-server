@@ -21,6 +21,12 @@ public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecific
     Page<Match> findByStatus(Match.MatchStatus status, Pageable pageable);
     long countByStatus(Match.MatchStatus status);
     
+    // Find matches by passenger with specific statuses
+    List<Match> findByPassengerIdAndStatusIn(Long passengerId, List<Match.MatchStatus> statuses);
+    
+    // Find matches by driver with specific statuses
+    List<Match> findByDriverIdAndStatusIn(Long driverId, List<Match.MatchStatus> statuses);
+    
     // Native query to update JSONB field with explicit casting
     @Modifying
     @Transactional

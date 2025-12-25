@@ -46,6 +46,9 @@ public class UserDto {
     @Schema(description = "Total rides completed by user", example = "25")
     private Integer totalRides;
 
+    @Schema(description = "User's average rating", example = "4.5")
+    private Float rating;
+
     @Schema(description = "User type (DRIVER or PASSENGER)", example = "PASSENGER")
     private String userType;
 

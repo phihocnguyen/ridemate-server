@@ -26,4 +26,7 @@ public class OtpResponse {
 
     @Schema(description = "Identifier/phone number that received OTP", example = "0912345678")
     private String identifier;
+
+    @Schema(description = "OTP code (only returned in sandbox/development mode for testing)", example = "123456")
+    private String otpCode;
 }

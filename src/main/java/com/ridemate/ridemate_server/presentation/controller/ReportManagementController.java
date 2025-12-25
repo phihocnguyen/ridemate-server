@@ -106,7 +106,7 @@ public class ReportManagementController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(
         summary = "Update report status (legacy endpoint)",
         description = "Update report status - supports RESOLVED or REJECTED with optional action"

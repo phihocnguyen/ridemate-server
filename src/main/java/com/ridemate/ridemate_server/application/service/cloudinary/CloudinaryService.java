@@ -1,7 +1,6 @@
 package com.ridemate.ridemate_server.application.service.cloudinary;
 
 import com.cloudinary.Cloudinary;
-import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,11 +25,8 @@ public class CloudinaryService {
         params.put("folder", folder);
         params.put("resource_type", "image");
         params.put("overwrite", true);
-        params.put("transformation", new Transformation<>()
-                .width(1000)
-                .height(1000)
-                .crop("limit")
-                .quality("auto"));
+        // Use transformation as string instead of Transformation object to avoid signature issues
+        params.put("transformation", "c_limit,h_1000,q_auto,w_1000");
 
         Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
         return (String) uploadResult.get("secure_url");

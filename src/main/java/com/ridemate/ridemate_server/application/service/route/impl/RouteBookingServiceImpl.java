@@ -356,9 +356,11 @@ public class RouteBookingServiceImpl implements RouteBookingService {
                 log.info("✅ SupabaseRealtimeService is available, proceeding with publish...");
                 
                 try {
+                    // Send minimal fields + passenger_id + status for realtime filtering
                     Map<String, Object> matchData = new HashMap<>();
                     matchData.put("id", match.getId());
                     matchData.put("passenger_id", match.getPassenger().getId());
+                    matchData.put("status", match.getStatus().name()); // ✅ Added for frontend condition check
                     if (match.getDriver() != null) {
                         matchData.put("driver_id", match.getDriver().getId());
                     } else {
@@ -366,29 +368,8 @@ public class RouteBookingServiceImpl implements RouteBookingService {
                     }
                     matchData.put("pickup_latitude", match.getPickupLatitude());
                     matchData.put("pickup_longitude", match.getPickupLongitude());
-                    matchData.put("pickup_address", match.getPickupAddress());
                     matchData.put("destination_latitude", match.getDestinationLatitude());
                     matchData.put("destination_longitude", match.getDestinationLongitude());
-                    matchData.put("destination_address", match.getDestinationAddress());
-                    matchData.put("status", match.getStatus().name());
-                    
-                    // Add matched_driver_candidates field (required for Supabase schema)
-                    // For fixed route, match already has driver, so use empty array or existing value
-                    if (match.getMatchedDriverCandidates() != null && !match.getMatchedDriverCandidates().isEmpty()) {
-                        matchData.put("matched_driver_candidates", match.getMatchedDriverCandidates());
-                    } else {
-                        matchData.put("matched_driver_candidates", "[]");
-                    }
-                    
-                    // Use createdAt if available, otherwise use current time
-                    if (match.getCreatedAt() != null) {
-                        matchData.put("created_at", match.getCreatedAt().toString());
-                        log.debug("Using match createdAt: {}", match.getCreatedAt());
-                    } else {
-                        String now = java.time.LocalDateTime.now().toString();
-                        matchData.put("created_at", now);
-                        log.warn("⚠️ Match {} has no createdAt, using current time: {}", match.getId(), now);
-                    }
                     
                     log.info("📤 Publishing existing match {} to Supabase with data: {}", match.getId(), matchData);
                     supabaseRealtimeService.publishMatch(matchData);
@@ -448,9 +429,11 @@ public class RouteBookingServiceImpl implements RouteBookingService {
             log.info("✅ SupabaseRealtimeService is available, proceeding with publish...");
             
             try {
+                // Send minimal fields + passenger_id + status for realtime filtering
                 Map<String, Object> matchData = new HashMap<>();
                 matchData.put("id", match.getId());
                 matchData.put("passenger_id", match.getPassenger().getId());
+                matchData.put("status", match.getStatus().name()); // ✅ Added for frontend condition check
                 if (match.getDriver() != null) {
                     matchData.put("driver_id", match.getDriver().getId());
                 } else {
@@ -458,29 +441,8 @@ public class RouteBookingServiceImpl implements RouteBookingService {
                 }
                 matchData.put("pickup_latitude", match.getPickupLatitude());
                 matchData.put("pickup_longitude", match.getPickupLongitude());
-                matchData.put("pickup_address", match.getPickupAddress());
                 matchData.put("destination_latitude", match.getDestinationLatitude());
                 matchData.put("destination_longitude", match.getDestinationLongitude());
-                matchData.put("destination_address", match.getDestinationAddress());
-                matchData.put("status", match.getStatus().name());
-                
-                // Add matched_driver_candidates field (required for Supabase schema)
-                // For fixed route, match already has driver, so use empty array or existing value
-                if (match.getMatchedDriverCandidates() != null && !match.getMatchedDriverCandidates().isEmpty()) {
-                    matchData.put("matched_driver_candidates", match.getMatchedDriverCandidates());
-                } else {
-                    matchData.put("matched_driver_candidates", "[]");
-                }
-                
-                // Use createdAt if available, otherwise use current time
-                if (match.getCreatedAt() != null) {
-                    matchData.put("created_at", match.getCreatedAt().toString());
-                    log.debug("Using match createdAt: {}", match.getCreatedAt());
-                } else {
-                    String now = java.time.LocalDateTime.now().toString();
-                    matchData.put("created_at", now);
-                    log.warn("⚠️ Match {} has no createdAt, using current time: {}", match.getId(), now);
-                }
                 
                 log.info("📤 Calling publishMatch() for match {} to Supabase (async operation)...", match.getId());
                 log.debug("Match data to publish: {}", matchData);
